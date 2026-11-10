@@ -1,0 +1,128 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+@theme {
+    --font-sans: 'Figtree', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+    --color-brand-900: #003e80;
+    --color-brand-500: #1a88ff;
+    --color-flame: #ff4d00;
+}
+
+body {
+    background: var(--color-slate-50);
+    color: var(--color-slate-900);
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Deep blue hero with a faint grid */
+.hero-bg {
+    background-image:
+        linear-gradient(rgb(255 255 255 / 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgb(255 255 255 / 0.06) 1px, transparent 1px),
+        linear-gradient(to top, var(--color-brand-500), var(--color-brand-900));
+    background-size: 56px 56px, 56px 56px, 100% 100%;
+}
+
+/* Header turns solid white once the page scrolls */
+.site-nav { transition: background-color 0.3s, color 0.3s, box-shadow 0.3s; color: #fff; }
+.site-nav[data-solid='true'] {
+    background: rgb(255 255 255 / 0.92);
+    color: var(--color-slate-900);
+    box-shadow: 0 1px 0 var(--color-slate-200);
+    backdrop-filter: blur(12px);
+}
+.site-nav .nav-cta { background: #fff; color: var(--color-slate-900); }
+.site-nav[data-solid='true'] .nav-cta { background: var(--color-slate-900); color: #fff; }
+
+.btn-flame {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+    padding: 0 2rem;
+    border-radius: 0.5rem;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #fff;
+    background-image: linear-gradient(to right, var(--color-orange-500), var(--color-rose-500));
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    transition: filter 0.2s, transform 0.2s;
+}
+.btn-flame:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+.btn-white {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    height: 3rem;
+    padding: 0 2rem;
+    border-radius: 9999px;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--color-brand-900);
+    background: #fff;
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.15);
+    transition: transform 0.2s, filter 0.2s;
+}
+.btn-white:hover { transform: scale(1.05); filter: brightness(0.97); }
+
+/* Round shoe thumbnails with a brand ring when selected */
+.shoe-dot {
+    background: #fff;
+    border-radius: 9999px;
+    overflow: hidden;
+    transition: transform 0.25s, box-shadow 0.25s;
+}
+.shoe-dot:hover { transform: scale(1.06); }
+.shoe-dot[aria-pressed='true'] { box-shadow: 0 0 0 3px var(--color-brand-900); }
+
+.shoe-card {
+    border: 1px solid var(--color-slate-200);
+    background: #fff;
+    transition: transform 0.25s, border-color 0.25s, box-shadow 0.25s;
+}
+.shoe-card:not(:disabled):hover { transform: translateY(-3px); box-shadow: 0 10px 25px -10px rgb(15 23 42 / 0.25); }
+.shoe-card[aria-pressed='true'] { border-color: var(--color-brand-900); box-shadow: 0 0 0 2px var(--color-brand-900); }
+
+/* Small orange dots scattered on light sections */
+.flame-dots {
+    background-image: radial-gradient(var(--color-flame) 1.5px, transparent 1.5px);
+    background-size: 120px 90px;
+    background-position: 20px 30px;
+    opacity: 0.35;
+}
+
+.rise { opacity: 0; transform: translateY(20px); animation: rise 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) forwards; }
+@keyframes rise { to { opacity: 1; transform: none; } }
+
+/* AR camera frame */
+.ar-frame::before,
+.ar-frame::after {
+    content: '';
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    border: 3px solid #fff;
+    z-index: 5;
+    pointer-events: none;
+}
+.ar-frame::before { top: 14px; left: 14px; border-right: 0; border-bottom: 0; border-top-left-radius: 12px; }
+.ar-frame::after { bottom: 14px; right: 14px; border-left: 0; border-top: 0; border-bottom-right-radius: 12px; }
+.scan {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 120px;
+    background: linear-gradient(to bottom, transparent, rgb(26 136 255 / 0.45), transparent);
+    animation: scan 2.4s ease-in-out infinite;
+}
+@keyframes scan { from { top: -120px; } to { top: 100%; } }
+
+@media (prefers-reduced-motion: reduce) {
+    .scan, .rise { animation: none; opacity: 1; transform: none; }
+}
