@@ -1,0 +1,15 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Block direct access to sensitive files in the project root
+    RewriteRule ^(\.env|\.git|composer\.(json|lock)|artisan|package(-lock)?\.json) - [F,L]
+
+    # Send every request into the public/ directory
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+# Never serve dotfiles (e.g. .env) from the project root
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
