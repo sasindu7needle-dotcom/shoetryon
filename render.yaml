@@ -31,6 +31,10 @@ services:
         sync: false
       - key: N8N_FORM_PASSWORD
         sync: false
+      - key: N8N_REOPTIMIZE_URL
+        sync: false
+      - key: N8N_SHOPAR_KEY
+        sync: false
       - key: ADMIN_USERNAME
         sync: false
       - key: ADMIN_PASSWORD

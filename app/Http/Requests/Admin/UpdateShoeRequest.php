@@ -16,32 +16,46 @@ class UpdateShoeRequest extends FormRequest
      */
     public function rules(): array
     {
-        $axis = ['required', 'numeric', 'between:-1000,1000'];
+        $exceptStudioFit = 'exclude_if:use_studio_fit,1';
+        $axis = [$exceptStudioFit, 'required', 'numeric', 'between:-1000,1000'];
 
         return [
             'name' => ['required', 'string', 'max:80'],
             'is_visible' => ['boolean'],
             'position' => ['required', 'integer', 'min:1', 'max:'.max(1, Shoe::query()->count())],
             'return_url' => ['nullable', 'string', 'max:2000'],
-            'fit.scale' => ['required', 'numeric', 'gt:0', 'max:1000'],
-            'fit.rotation' => ['required', 'array:0,1,2', 'size:3'],
-            'fit.rotation.*' => ['required', 'numeric', 'between:-360,360'],
-            'fit.position' => ['required', 'array:0,1,2', 'size:3'],
+            'use_studio_fit' => ['boolean'],
+            'fit' => [$exceptStudioFit, 'array'],
+            'fit.scale' => [$exceptStudioFit, 'required', 'numeric', 'gt:0', 'max:1000'],
+            'fit.rotation' => [$exceptStudioFit, 'required', 'array:0,1,2', 'size:3'],
+            'fit.rotation.*' => [$exceptStudioFit, 'required', 'numeric', 'between:-360,360'],
+            'fit.position' => [$exceptStudioFit, 'required', 'array:0,1,2', 'size:3'],
             'fit.position.*' => $axis,
-            'fit.stretch' => ['required', 'array:0,1,2', 'size:3'],
-            'fit.stretch.*' => ['required', 'numeric', 'gt:0', 'max:10'],
+            'fit.stretch' => [$exceptStudioFit, 'required', 'array:0,1,2', 'size:3'],
+            'fit.stretch.*' => [$exceptStudioFit, 'required', 'numeric', 'gt:0', 'max:10'],
         ];
     }
 
     /**
      * The validated values in the shape the shoes table stores. A stretch of
-     * 1 on every axis is left out, as the shoe catalog does.
+     * 1 on every axis is left out, as the shoe catalog does. With
+     * "use the placement exported from DeepAR Studio" ticked the fit is
+     * empty, so the try-on leaves the effect's own transform alone.
      *
-     * @return array{name: string, is_visible: bool, fit: array{scale: float, rotation: list<float>, position: list<float>, stretch?: list<float>}}
+     * @return array{name: string, is_visible: bool, fit: array{scale: float, rotation: list<float>, position: list<float>, stretch?: list<float>}|null}
      */
     public function shoeAttributes(): array
     {
         $toFloats = fn (array $values): array => array_map('floatval', array_values($values));
+
+        if ($this->boolean('use_studio_fit')) {
+            return [
+                'name' => $this->validated('name'),
+                'is_visible' => $this->boolean('is_visible'),
+                'fit' => null,
+            ];
+        }
+
         $fit = $this->validated('fit');
 
         $attributes = [

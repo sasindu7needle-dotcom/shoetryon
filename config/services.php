@@ -33,14 +33,24 @@ return [
     ],
 
     /*
-    | The n8n "ShopAR: new shoe from photos" workflow. The admin's Add new shoe
-    | page posts the photos to its form trigger (production URL, ending in
-    | /form/shopar-new-shoe) with the form's Basic Auth login.
+    | The n8n "ShopAR: admin shoe pipeline" workflow.
+    |
+    | The admin's Add new shoe page posts the photos to its form trigger
+    | (production URL, ending in /form/shopar-new-shoe) with the form's Basic
+    | Auth login. Re-optimize posts the admin's comment to its webhook
+    | (production URL, ending in /webhook/shopar-fit-reoptimize).
+    |
+    | `shopar_key` is sent both ways in the X-ShopAR-Key header: on the
+    | re-optimize request, and by n8n when it calls back with the GLB or the
+    | new fit (/api/n8n/...). Use one long random value in n8n's Header Auth
+    | credential and here.
     */
     'n8n' => [
         'new_shoe_form_url' => env('N8N_NEW_SHOE_FORM_URL'),
         'form_username' => env('N8N_FORM_USERNAME'),
         'form_password' => env('N8N_FORM_PASSWORD'),
+        'reoptimize_url' => env('N8N_REOPTIMIZE_URL'),
+        'shopar_key' => env('N8N_SHOPAR_KEY'),
         'timeout' => (int) env('N8N_TIMEOUT', 120),
     ],
 

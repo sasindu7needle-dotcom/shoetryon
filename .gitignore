@@ -26,3 +26,5 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 /public/vendor/deepar
+/public/models/generated
+/public/effects/generated

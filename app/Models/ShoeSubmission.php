@@ -13,7 +13,7 @@ use Normalizer;
 /**
  * A new shoe the admin sent to the n8n workflow as one to four photos.
  */
-#[Fillable(['user_id', 'name', 'slug', 'shoe_type', 'length_cm', 'status', 'message'])]
+#[Fillable(['user_id', 'name', 'slug', 'shoe_type', 'length_cm', 'photo_path', 'glb_path', 'tripo_task_id', 'status', 'message'])]
 class ShoeSubmission extends Model
 {
     /** @use HasFactory<ShoeSubmissionFactory> */

@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\N8n\ShoeSubmissionCallbackController;
 use App\Http\Requests\Admin\StoreShoeSubmissionRequest;
+use App\Models\Shoe;
 use App\Models\ShoeSubmission;
 use App\ShoeSubmissionStatus;
 use Illuminate\Contracts\View\View;
@@ -13,6 +15,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class ShoeSubmissionController extends Controller
 {
@@ -44,10 +47,22 @@ class ShoeSubmissionController extends Controller
     }
 
     /**
-     * Sends the name, type, length and the front photo (plus any other views
-     * the admin added) to the n8n workflow's form,
-     * which makes the 3D model and AR effect and adds the shoe to the site,
-     * hidden until it is approved after a phone test.
+     * A sent shoe: its photo, its 3D model once n8n has sent it back, and
+     * the form for its DeepAR effect.
+     */
+    public function show(ShoeSubmission $submission): View
+    {
+        return view('admin.shoe-submissions.show', [
+            'submission' => $submission->load('user'),
+            'libraryShoe' => Shoe::query()->where('slug', $submission->slug)->first(),
+        ]);
+    }
+
+    /**
+     * Keeps the front photo as the shoe's thumbnail, then sends the name,
+     * type, length and photos to the n8n workflow's form. The workflow has
+     * Tripo make the 3D model and sends the GLB back to
+     * /api/n8n/shoe-submissions/<id>/model.
      */
     public function store(StoreShoeSubmissionRequest $request): RedirectResponse
     {
@@ -62,6 +77,8 @@ class ShoeSubmissionController extends Controller
             'status' => ShoeSubmissionStatus::Processing,
         ]);
 
+        $submission->update(['photo_path' => $this->keepFrontPhoto($request->file(StoreShoeSubmissionRequest::REQUIRED_PHOTO), $submission)]);
+
         $failure = $this->sendToWorkflow($request, $submission);
 
         if ($failure !== null) {
@@ -72,7 +89,16 @@ class ShoeSubmissionController extends Controller
 
         $submission->update(['message' => 'Sent to n8n.']);
 
-        return redirect()->route('admin.shoe-submissions.create')->with('status', "{$submission->name} was sent to n8n. You will get an email with a test link when the shoe is ready, usually within 30 minutes.");
+        return redirect()->route('admin.shoe-submissions.create')->with('status', "{$submission->name} was sent to n8n. Its 3D model shows up below when Tripo has made it, usually in 1 to 3 minutes. Reload the page to check.");
+    }
+
+    /**
+     * Saves the front photo as public/models/generated/<id>.<ext>, the
+     * thumbnail the shoe gets when it joins the library.
+     */
+    private function keepFrontPhoto(UploadedFile $photo, ShoeSubmission $submission): string
+    {
+        return Storage::disk('shoe_assets')->putFileAs(ShoeSubmissionCallbackController::MODEL_FOLDER, $photo, $submission->slug.'.'.$photo->extension());
     }
 
     /**

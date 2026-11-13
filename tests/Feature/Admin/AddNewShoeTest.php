@@ -10,6 +10,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class AddNewShoeTest extends TestCase
@@ -24,6 +25,7 @@ class AddNewShoeTest extends TestCase
     {
         parent::setUp();
 
+        Storage::fake('shoe_assets');
         $this->admin = User::factory()->admin()->create();
         config([
             'services.n8n.new_shoe_form_url' => self::FORM_URL,
@@ -97,6 +99,16 @@ class AddNewShoeTest extends TestCase
         $this->assertSame('leather-loafer', $submission->slug);
         $this->assertSame(ShoeSubmissionStatus::Processing, $submission->status);
         $this->assertTrue($submission->user->is($this->admin));
+    }
+
+    public function test_the_front_photo_is_kept_as_the_shoes_thumbnail(): void
+    {
+        Http::fake([self::FORM_URL => Http::response()]);
+
+        $this->actingAs($this->admin)->post(route('admin.shoe-submissions.store'), $this->validSubmission());
+
+        $this->assertSame('models/generated/leather-loafer.jpg', ShoeSubmission::query()->sole()->photo_path);
+        Storage::disk('shoe_assets')->assertExists('models/generated/leather-loafer.jpg');
     }
 
     public function test_boots_are_sent_with_the_boot_option(): void
@@ -252,7 +264,7 @@ class AddNewShoeTest extends TestCase
         ShoeSubmission::factory()->failed()->create(['name' => 'Canvas Slip-On']);
 
         $this->actingAs($this->admin)->withoutVite()->get(route('admin.shoe-submissions.create'))
-            ->assertSeeInOrder(['Canvas Slip-On', 'Failed to send', 'Desert Boot', 'Ready for phone test']);
+            ->assertSeeInOrder(['Canvas Slip-On', 'Failed', 'Desert Boot', 'Ready for phone test']);
     }
 
     public function test_users_who_are_not_admins_cannot_add_shoes(): void

@@ -47,6 +47,18 @@ return [
             'report' => false,
         ],
 
+        /*
+        | The files of shoes made through n8n (front photo, Tripo GLB, DeepAR
+        | effect), stored under public/ next to the catalog's own, so the
+        | shoes table holds the same public-relative paths for both.
+        */
+        'shoe_assets' => [
+            'driver' => 'local',
+            'root' => public_path(),
+            'throw' => true,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

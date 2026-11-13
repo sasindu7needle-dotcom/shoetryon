@@ -78,6 +78,8 @@ class ShoeController extends Controller
             'shoe' => $shoe,
             'shoeCount' => Shoe::query()->count(),
             'libraryUrl' => UpdateShoeRequest::safeLibraryUrl(url()->previous()),
+            'fitRounds' => $shoe->fitRounds()->with('user')->latest('id')->limit(5)->get(),
+            'isReoptimizeConfigured' => filled(config('services.n8n.reoptimize_url')) && filled(config('services.n8n.shopar_key')),
         ]);
     }
 

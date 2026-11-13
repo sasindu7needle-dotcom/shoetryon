@@ -18,7 +18,7 @@
 <x-admin-layout title="Add new shoe">
     <x-slot:header>
         <h1 class="rise text-3xl font-bold sm:text-4xl">Add new shoe</h1>
-        <p class="rise mt-2 max-w-2xl text-white/85" style="animation-delay:.1s">Upload one to four photos of the shoe. The n8n workflow turns them into a 3D model and an AR try-on, then emails you a test link. The shoe stays hidden until you approve it.</p>
+        <p class="rise mt-2 max-w-2xl text-white/85" style="animation-delay:.1s">Upload a photo of the shoe. n8n has Tripo turn it into a 3D model and sends it back here, usually in 1 to 3 minutes. You check it, add its DeepAR effect, and the shoe joins the library hidden until you approve it.</p>
     </x-slot:header>
 
     @unless ($isWorkflowConfigured)
@@ -77,7 +77,7 @@
             <section class="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
                 <div>
                     <h2 class="text-xl font-bold">Photos of the right shoe</h2>
-                    <p class="mt-1 text-sm text-slate-500">The front photo is required. The others are optional, but each one shows the 3D model more of the shoe, so it comes out more accurate. Boots and shoes with a distinctive heel or two-tone design need all four.</p>
+                    <p class="mt-1 text-sm text-slate-500">The front photo is required, and it is the one Tripo makes the 3D model from. The other views are optional; they are sent along for a multi-view model later but not used yet.</p>
                     <p class="mt-1 text-sm text-slate-500">JPEG or PNG, up to {{ number_format($maxPhotoBytes / 1024 / 1024, 0) }} MB each. The try-on mirrors it onto the left foot.</p>
                 </div>
 
@@ -126,10 +126,10 @@
             <h2 class="mt-2 text-lg font-bold">What happens next</h2>
             <ol class="flex flex-col gap-2.5 text-sm text-slate-600">
                 @foreach ([
-                    'n8n makes a 3D model from the photos and Claude checks it.',
-                    'The AR files are built and added to the site as a hidden shoe.',
-                    'You get an email with a link to test it on your phone, usually within 30 minutes.',
-                    'Approve it from the email and it appears on the site.',
+                    'n8n has Tripo make a 3D model (GLB) from the photos. It shows up in the list below, usually in 1 to 3 minutes.',
+                    'Open it, turn the model around and download the GLB.',
+                    'Build its .deepar effect in DeepAR Studio and upload it. The shoe joins the library, hidden.',
+                    'Test it on your phone. Re-optimize with Claude until it sits right, then make it visible.',
                 ] as $step)
                     <li class="flex gap-3"><span class="grid size-5 shrink-0 place-items-center rounded-full bg-brand-500/10 text-xs font-bold text-brand-900">{{ $loop->iteration }}</span>{{ $step }}</li>
                 @endforeach
@@ -140,7 +140,7 @@
     <section aria-labelledby="submissions-title" class="mt-8 overflow-hidden rounded-2xl border border-slate-200 bg-white">
         <div class="border-b border-slate-200 p-5 sm:p-6">
             <h2 id="submissions-title" class="text-xl font-bold">Sent to n8n</h2>
-            <p class="mt-1 text-sm text-slate-500">Shoes move to the shoe library once n8n has finished them.</p>
+            <p class="mt-1 text-sm text-slate-500">Open a shoe to see its 3D model and add it to the shoe library.</p>
         </div>
 
         @if ($submissions->isEmpty())
@@ -150,7 +150,7 @@
                 @foreach ($submissions as $submission)
                     <li class="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                         <div class="min-w-0">
-                            <p class="truncate font-semibold">{{ $submission->name }}</p>
+                            <a href="{{ route('admin.shoe-submissions.show', $submission) }}" class="block truncate font-semibold text-brand-900 hover:underline">{{ $submission->name }}</a>
                             <p class="truncate text-sm text-slate-500">
                                 {{ $submission->slug }} · {{ $submission->shoe_type === 'boot' ? 'Boot' : 'Low shoe' }} · {{ rtrim(rtrim($submission->length_cm, '0'), '.') }} cm
                                 · <time datetime="{{ $submission->created_at->toIso8601String() }}" title="{{ $submission->created_at->toDayDateTimeString() }}">{{ $submission->created_at->diffForHumans() }}</time>

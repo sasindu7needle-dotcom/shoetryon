@@ -3,8 +3,10 @@
 use App\Http\Controllers\Admin\AuthenticatedSessionController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ShoeController;
+use App\Http\Controllers\Admin\ShoeFitRoundController;
 use App\Http\Controllers\Admin\ShoePositionController;
 use App\Http\Controllers\Admin\ShoeSubmissionController;
+use App\Http\Controllers\Admin\ShoeSubmissionLibraryController;
 use App\Http\Controllers\Admin\ShoeVisibilityController;
 use App\Http\Controllers\TryOnController;
 use Illuminate\Support\Facades\Route;
@@ -24,6 +26,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::get('shoes/new', [ShoeSubmissionController::class, 'create'])->name('shoe-submissions.create');
         Route::post('shoes/new', [ShoeSubmissionController::class, 'store'])->name('shoe-submissions.store');
+        Route::get('shoes/new/{submission}', [ShoeSubmissionController::class, 'show'])->name('shoe-submissions.show');
+        Route::post('shoes/new/{submission}/library', [ShoeSubmissionLibraryController::class, 'store'])->name('shoe-submissions.library.store');
+        Route::post('shoes/{shoe}/fit-rounds', [ShoeFitRoundController::class, 'store'])->name('shoes.fit-rounds.store');
 
         Route::resource('shoes', ShoeController::class)->only(['index', 'edit', 'update', 'destroy']);
         Route::patch('shoes/{shoe}/position', [ShoePositionController::class, 'update'])->name('shoes.position.update');

@@ -103,6 +103,30 @@ class ShoeLibraryTest extends TestCase
         $this->assertArrayNotHasKey('stretch', $shoe->refresh()->fit);
     }
 
+    public function test_using_the_studio_placement_clears_the_fit_and_ignores_its_fields(): void
+    {
+        $shoe = Shoe::factory()->create();
+
+        $response = $this->actingAs($this->admin)->put(route('admin.shoes.update', $shoe), [
+            'name' => $shoe->name,
+            'is_visible' => '1',
+            'position' => $shoe->position,
+            'use_studio_fit' => '1',
+            'fit' => ['scale' => '', 'rotation' => [0, 0, 0], 'position' => [0, 0, 0], 'stretch' => [1, 1, 1]],
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $this->assertNull($shoe->refresh()->fit);
+    }
+
+    public function test_edit_page_ticks_the_studio_placement_for_a_shoe_without_a_fit(): void
+    {
+        $shoe = Shoe::factory()->create(['fit' => null]);
+
+        $this->actingAs($this->admin)->withoutVite()->get(route('admin.shoes.edit', $shoe))
+            ->assertSee('name="use_studio_fit" value="1" checked', false);
+    }
+
     public function test_update_rejects_invalid_values(): void
     {
         $shoe = Shoe::factory()->create();

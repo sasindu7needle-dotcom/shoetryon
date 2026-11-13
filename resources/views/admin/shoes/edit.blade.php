@@ -67,10 +67,22 @@
             </section>
 
             <section class="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
-                <div>
-                    <h2 class="text-xl font-bold">AR fit</h2>
-                    <p class="mt-1 text-sm text-slate-500">How the shoe sits on the tracked foot. Small changes go a long way; test on a phone after saving.</p>
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <h2 class="text-xl font-bold">AR fit</h2>
+                        <p class="mt-1 text-sm text-slate-500">How the shoe sits on the tracked foot. Small changes go a long way; test on a phone after saving.</p>
+                    </div>
+                    <a href="{{ route('tryon', ['preview' => $shoe->slug]) }}" target="_blank" class="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-medium transition hover:bg-slate-100">Test on phone</a>
                 </div>
+
+                <label class="flex items-center gap-3">
+                    <input type="hidden" name="use_studio_fit" value="0">
+                    <input type="checkbox" name="use_studio_fit" value="1" @checked(old('use_studio_fit', $shoe->fit === null)) class="size-5 rounded accent-brand-900">
+                    <span>
+                        <span class="block text-sm font-semibold">Use the placement exported from DeepAR Studio</span>
+                        <span class="block text-sm text-slate-500">Ignores the values below. Untick to place the shoe with them.</span>
+                    </span>
+                </label>
 
                 <div class="flex flex-col gap-1.5 sm:max-w-48">
                     <label for="fit-scale" class="text-sm font-semibold">Scale</label>
@@ -105,4 +117,66 @@
             </div>
         </div>
     </form>
+
+    <section aria-labelledby="reoptimize-title" class="mt-8 grid gap-6 lg:grid-cols-[300px_1fr]">
+        <div class="hidden lg:block"></div>
+
+        <div class="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+            <div>
+                <h2 id="reoptimize-title" class="text-xl font-bold">Re-optimize with Claude</h2>
+                <p class="mt-1 text-sm text-slate-500">Try the shoe on with your phone, then say what looks wrong, for example "the heel sticks out behind my foot" or "the shoe floats above the floor". Claude changes the AR fit and saves it here; no new AR files are built.</p>
+            </div>
+
+            @unless ($isReoptimizeConfigured)
+                <div role="alert" class="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+                    <p class="font-semibold">The n8n re-optimize webhook is not connected yet.</p>
+                    <p class="mt-1">Set <code class="rounded bg-amber-100 px-1">N8N_REOPTIMIZE_URL</code> and <code class="rounded bg-amber-100 px-1">N8N_SHOPAR_KEY</code> in the environment, then reload this page.</p>
+                </div>
+            @endunless
+
+            <form method="POST" action="{{ route('admin.shoes.fit-rounds.store', $shoe) }}" enctype="multipart/form-data" class="flex flex-col gap-4">
+                @csrf
+
+                <div class="flex flex-col gap-1.5">
+                    <label for="comment" class="text-sm font-semibold">What looks wrong on the phone?</label>
+                    <textarea id="comment" name="comment" rows="3" required minlength="5" maxlength="1000" class="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30">{{ old('comment') }}</textarea>
+                    @error('comment')
+                        <p class="text-sm text-rose-600">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <div class="flex flex-col gap-1.5">
+                    <label for="screenshot" class="text-sm font-semibold">Phone screenshot <span class="font-normal text-slate-500">· optional, JPEG, PNG or WebP up to 5 MB</span></label>
+                    <input id="screenshot" name="screenshot" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" class="text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-4 file:py-2 file:font-medium">
+                    @error('screenshot')
+                        <p class="text-sm text-rose-600">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <div class="flex justify-end">
+                    <button type="submit" @disabled(! $isReoptimizeConfigured) class="btn-flame disabled:cursor-not-allowed disabled:opacity-50">Re-optimize</button>
+                </div>
+            </form>
+
+            @if ($fitRounds->isNotEmpty())
+                <ul class="divide-y divide-slate-200 border-t border-slate-200">
+                    @foreach ($fitRounds as $round)
+                        <li class="flex flex-col gap-1.5 py-3">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <p class="text-sm text-slate-500">
+                                    <time datetime="{{ $round->created_at->toIso8601String() }}" title="{{ $round->created_at->toDayDateTimeString() }}">{{ $round->created_at->diffForHumans() }}</time>
+                                    @if ($round->user) · {{ $round->user->name }} @endif
+                                </p>
+                                <span class="rounded-full px-2.5 py-1 text-xs font-medium {{ $round->status->badgeClasses() }}">{{ $round->status->label() }}</span>
+                            </div>
+                            <p class="text-sm">“{{ $round->comment }}”</p>
+                            @if ($round->message)
+                                <p class="text-sm {{ $round->status === \App\ShoeFitRoundStatus::Failed ? 'text-rose-600' : 'text-slate-600' }}">{{ $round->message }}</p>
+                            @endif
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
+        </div>
+    </section>
 </x-admin-layout>

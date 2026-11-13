@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 
 #[Fillable(['slug', 'name', 'glb', 'thumb', 'effect', 'fit', 'position', 'is_visible'])]
@@ -40,6 +41,16 @@ class Shoe extends Model
             'position' => 'integer',
             'is_visible' => 'boolean',
         ];
+    }
+
+    /**
+     * The admin's "re-optimize with Claude" requests for this shoe's fit.
+     *
+     * @return HasMany<ShoeFitRound, $this>
+     */
+    public function fitRounds(): HasMany
+    {
+        return $this->hasMany(ShoeFitRound::class);
     }
 
     /**

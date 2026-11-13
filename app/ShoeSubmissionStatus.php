@@ -10,8 +10,11 @@ enum ShoeSubmissionStatus: string
     /** n8n accepted the photos and is making the shoe. */
     case Processing = 'processing';
 
-    /** n8n could not be reached or refused the photos. */
+    /** n8n could not be reached, refused the photos, or Tripo could not make the model. */
     case Failed = 'failed';
+
+    /** n8n sent back Tripo's 3D model; it waits for its AR effect before it joins the library. */
+    case ModelReady = 'model_ready';
 
     /** The finished shoe reached the site, hidden until it is approved after a phone test. */
     case ReadyForReview = 'ready_for_review';
@@ -23,7 +26,8 @@ enum ShoeSubmissionStatus: string
     {
         return match ($this) {
             self::Processing => 'Being made',
-            self::Failed => 'Failed to send',
+            self::Failed => 'Failed',
+            self::ModelReady => '3D model ready',
             self::ReadyForReview => 'Ready for phone test',
             self::Published => 'Published',
         };
@@ -37,6 +41,7 @@ enum ShoeSubmissionStatus: string
         return match ($this) {
             self::Processing => 'bg-amber-100 text-amber-800',
             self::Failed => 'bg-rose-100 text-rose-700',
+            self::ModelReady => 'bg-sky-100 text-sky-800',
             self::ReadyForReview => 'bg-brand-500/10 text-brand-900',
             self::Published => 'bg-emerald-100 text-emerald-700',
         };
@@ -49,6 +54,6 @@ enum ShoeSubmissionStatus: string
      */
     public static function claimingId(): array
     {
-        return [self::Processing, self::ReadyForReview];
+        return [self::Processing, self::ModelReady, self::ReadyForReview];
     }
 }
