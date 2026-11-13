@@ -264,7 +264,7 @@ class AddNewShoeTest extends TestCase
         ShoeSubmission::factory()->failed()->create(['name' => 'Canvas Slip-On']);
 
         $this->actingAs($this->admin)->withoutVite()->get(route('admin.shoe-submissions.create'))
-            ->assertSeeInOrder(['Canvas Slip-On', 'Failed', 'Desert Boot', 'Ready for phone test']);
+            ->assertSeeInOrder(['Canvas Slip-On', 'Failed', 'Desert Boot', 'Try-on review']);
     }
 
     public function test_users_who_are_not_admins_cannot_add_shoes(): void

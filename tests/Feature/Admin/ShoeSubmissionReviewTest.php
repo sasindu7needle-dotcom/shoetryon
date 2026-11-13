@@ -4,6 +4,7 @@ namespace Tests\Feature\Admin;
 
 use App\Http\Requests\Admin\ReviewShoeSubmissionRequest;
 use App\Models\Shoe;
+use App\Models\ShoeFitRound;
 use App\Models\ShoeSubmission;
 use App\Models\User;
 use App\ShoeSubmissionStatus;
@@ -44,6 +45,31 @@ class ShoeSubmissionReviewTest extends TestCase
     private function effect(string $name = 'leather-loafer.deepar'): UploadedFile
     {
         return UploadedFile::fake()->createWithContent($name, 'deepar-effect-bytes');
+    }
+
+    public function test_dashboard_lists_shoes_waiting_on_the_admin_with_the_model_review_first(): void
+    {
+        ShoeSubmission::factory()->readyForReview()->create(['name' => 'Phone Test Pump']);
+        ShoeSubmission::factory()->modelReady()->create(['name' => 'Fresh Model Sneaker']);
+        ShoeSubmission::factory()->failed()->create(['name' => 'Broken Boot']);
+        ShoeSubmission::factory()->create(['name' => 'Still Cooking Clog']);
+
+        $response = $this->actingAs($this->admin)->withoutVite()->get(route('admin.dashboard'));
+
+        $response->assertOk();
+        $response->assertSee('Needs your review');
+        $response->assertSeeInOrder(['Fresh Model Sneaker', 'Review model', 'Phone Test Pump']);
+        $response->assertDontSee('Broken Boot');
+        $response->assertDontSee('Still Cooking Clog');
+    }
+
+    public function test_dashboard_hides_the_review_section_when_nothing_is_waiting(): void
+    {
+        ShoeSubmission::factory()->failed()->create();
+
+        $this->actingAs($this->admin)->withoutVite()->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertDontSee('Needs your review');
     }
 
     public function test_page_shows_the_photo_the_3d_model_and_the_review_form(): void
@@ -199,7 +225,7 @@ class ShoeSubmissionReviewTest extends TestCase
         $response = $this->actingAs($this->admin)->post(route('admin.shoe-submissions.library.store', $submission), ['effect' => $this->effect()]);
 
         $shoe = Shoe::query()->where('slug', 'leather-loafer')->sole();
-        $response->assertRedirect(route('admin.shoes.edit', $shoe));
+        $response->assertRedirect(route('admin.shoe-submissions.show', $submission));
         $this->assertSame('Leather Loafer', $shoe->name);
         $this->assertSame('models/generated/leather-loafer.glb', $shoe->glb);
         $this->assertSame('models/generated/leather-loafer.jpg', $shoe->thumb);
@@ -230,6 +256,76 @@ class ShoeSubmissionReviewTest extends TestCase
         $this->assertDatabaseEmpty('shoes');
     }
 
+    /**
+     * A submission whose shoe is in the library, hidden, waiting for the live try-on review.
+     */
+    private function submissionInLibrary(): ShoeSubmission
+    {
+        $submission = ShoeSubmission::factory()->modelApproved()->readyForReview()->create(['name' => 'Leather Loafer', 'slug' => 'leather-loafer']);
+        Shoe::factory()->hidden()->create(['slug' => 'leather-loafer', 'name' => 'Leather Loafer']);
+
+        return $submission;
+    }
+
+    public function test_a_shoe_in_the_library_shows_the_live_try_on_review(): void
+    {
+        config(['services.n8n.reoptimize_url' => 'https://n8n.example.test/webhook/reoptimize', 'services.n8n.shopar_key' => 'key']);
+        $submission = $this->submissionInLibrary();
+        $shoe = Shoe::query()->where('slug', 'leather-loafer')->sole();
+
+        $this->actingAs($this->admin)->withoutVite()->get(route('admin.shoe-submissions.show', $submission))
+            ->assertOk()
+            ->assertSee('Live try-on review')
+            ->assertSee(route('tryon', ['preview' => 'leather-loafer']), false)
+            ->assertSee(route('admin.shoe-submissions.publish.store', $submission), false)
+            ->assertSee(route('admin.shoes.fit-rounds.store', $shoe), false)
+            ->assertDontSee('Add to library');
+    }
+
+    public function test_the_try_on_review_shows_when_claude_is_still_working(): void
+    {
+        $submission = $this->submissionInLibrary();
+        ShoeFitRound::factory()->create(['shoe_id' => Shoe::query()->where('slug', 'leather-loafer')->value('id')]);
+
+        $this->actingAs($this->admin)->withoutVite()->get(route('admin.shoe-submissions.show', $submission))
+            ->assertOk()
+            ->assertSee('Claude is working out a new fit');
+    }
+
+    public function test_approving_the_try_on_publishes_the_shoe(): void
+    {
+        $submission = $this->submissionInLibrary();
+
+        $this->actingAs($this->admin)->post(route('admin.shoe-submissions.publish.store', $submission))
+            ->assertRedirect(route('admin.shoe-submissions.show', $submission));
+
+        $this->assertTrue(Shoe::query()->where('slug', 'leather-loafer')->sole()->is_visible);
+        $this->assertSame(ShoeSubmissionStatus::Published, $submission->refresh()->status);
+    }
+
+    public function test_a_shoe_cannot_be_published_while_claude_is_changing_its_fit(): void
+    {
+        $submission = $this->submissionInLibrary();
+        $shoe = Shoe::query()->where('slug', 'leather-loafer')->sole();
+        ShoeFitRound::factory()->create(['shoe_id' => $shoe->id]);
+
+        $this->actingAs($this->admin)->from(route('admin.shoe-submissions.show', $submission))
+            ->post(route('admin.shoe-submissions.publish.store', $submission))
+            ->assertRedirect(route('admin.shoe-submissions.show', $submission))
+            ->assertSessionHas('error');
+
+        $this->assertFalse($shoe->refresh()->is_visible);
+        $this->assertSame(ShoeSubmissionStatus::ReadyForReview, $submission->refresh()->status);
+    }
+
+    public function test_only_a_shoe_waiting_for_its_try_on_can_be_published(): void
+    {
+        $submission = $this->submissionWithFiles('modelApproved');
+
+        $this->actingAs($this->admin)->post(route('admin.shoe-submissions.publish.store', $submission))
+            ->assertConflict();
+    }
+
     public function test_users_who_are_not_admins_cannot_review_shoes(): void
     {
         $submission = $this->submissionWithFiles();
@@ -239,5 +335,6 @@ class ShoeSubmissionReviewTest extends TestCase
         $this->actingAs($user)->get(route('admin.shoe-submissions.files.show', [$submission, 'model']))->assertForbidden();
         $this->actingAs($user)->post(route('admin.shoe-submissions.review.store', $submission), ['decision' => 'reject', 'note' => 'No.'])->assertForbidden();
         $this->actingAs($user)->post(route('admin.shoe-submissions.library.store', $submission), ['effect' => $this->effect()])->assertForbidden();
+        $this->actingAs($user)->post(route('admin.shoe-submissions.publish.store', $submission))->assertForbidden();
     }
 }

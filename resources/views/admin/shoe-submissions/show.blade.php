@@ -75,7 +75,7 @@
                 <section class="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
                     <div>
                         <h2 class="text-xl font-bold">Review the 3D model</h2>
-                        <p class="mt-1 text-sm text-slate-500">Step 1 of 2. Turn the model around and compare it with the photo. Approve it only if every check passes; otherwise reject it and say what is wrong.</p>
+                        <p class="mt-1 text-sm text-slate-500">Step 1 of 3. Turn the model around and compare it with the photo. Approve it only if every check passes; otherwise reject it and say what is wrong.</p>
                     </div>
 
                     @if (! $hasModel)
@@ -115,7 +115,7 @@
                 <section class="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
                     <div>
                         <h2 class="text-xl font-bold">Add to the shoe library</h2>
-                        <p class="mt-1 text-sm text-slate-500">Step 2 of 2. The try-on needs a DeepAR effect. Download the GLB, import it into DeepAR Studio's shoe try-on template, export the <code>.deepar</code> file and upload it here. The shoe joins the library hidden, so you can test it on your phone and re-optimize its fit first.</p>
+                        <p class="mt-1 text-sm text-slate-500">Step 2 of 3. The try-on needs a DeepAR effect. Download the GLB, import it into DeepAR Studio's shoe try-on template, export the <code>.deepar</code> file and upload it here. The shoe joins the library hidden; in step 3 you try it on live before it goes on the site.</p>
                     </div>
 
                     <form method="POST" action="{{ route('admin.shoe-submissions.library.store', $submission) }}" enctype="multipart/form-data" class="flex flex-col gap-4">
@@ -137,9 +137,124 @@
                     <p class="text-sm text-slate-600">This model was rejected. Retake the photos with the review notes in mind and send the shoe again.</p>
                     <a href="{{ route('admin.shoe-submissions.create') }}" class="btn-flame">Send it again</a>
                 </section>
+            @elseif ($status === \App\ShoeSubmissionStatus::ReadyForReview && $libraryShoe)
+                @php
+                    $tryOnUrl = route('tryon', ['preview' => $libraryShoe->slug]);
+                    $latestRound = $fitRounds->first();
+                @endphp
+                <section aria-labelledby="tryon-review-title" class="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+                    <div>
+                        <h2 id="tryon-review-title" class="text-xl font-bold">Live try-on review</h2>
+                        <p class="mt-1 text-sm text-slate-500">Step 3 of 3. Wear the shoe in the live try-on, ideally on a phone pointed at your feet. If it sits right, publish it. If not, say what is wrong and Claude works out a new fit; then try it on again.</p>
+                    </div>
+
+                    <div class="flex flex-col gap-3 rounded-xl bg-slate-50 p-4">
+                        <div class="flex flex-wrap items-center gap-3">
+                            <a href="{{ $tryOnUrl }}" target="_blank" rel="noopener" class="btn-flame">Open live try-on</a>
+                            <button type="button" data-copy-link="{{ $tryOnUrl }}" class="inline-flex h-11 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium transition hover:bg-slate-100">Copy link for your phone</button>
+                        </div>
+                        <p class="break-all text-xs text-slate-500">{{ $tryOnUrl }}</p>
+                        <p class="text-xs text-slate-500">The shoe is listed first as “{{ $libraryShoe->name }} (preview)”. It stays hidden from shoppers until you publish it. Open the link again after each new fit so it loads.</p>
+                    </div>
+
+                    @if ($isFitRoundProcessing)
+                        <div role="status" class="flex items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+                            <span class="size-5 shrink-0 animate-spin rounded-full border-2 border-amber-300 border-t-amber-700"></span>
+                            <p>Claude is working out a new fit. This page reloads by itself when it is done; then try the shoe on again.</p>
+                        </div>
+                        <script>setTimeout(() => location.reload(), 15000);</script>
+                    @elseif ($latestRound?->status === \App\ShoeFitRoundStatus::Applied)
+                        <p class="rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-900">Claude saved a new fit {{ $latestRound->updated_at->diffForHumans() }}. Open the live try-on again to check it.</p>
+                    @endif
+
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <form method="POST" action="{{ route('admin.shoe-submissions.publish.store', $submission) }}" class="flex flex-col justify-between gap-4 rounded-xl border border-emerald-200 p-4">
+                            @csrf
+                            <div>
+                                <h3 class="font-semibold">It sits right</h3>
+                                <p class="mt-1 text-sm text-slate-500">The shoe follows the foot, the heel and toe line up, and it rests on the floor. Publishing makes it visible on the site.</p>
+                            </div>
+                            <button type="submit" @disabled($isFitRoundProcessing) class="btn-flame self-start disabled:cursor-not-allowed disabled:opacity-50">Approve and publish</button>
+                        </form>
+
+                        <form method="POST" action="{{ route('admin.shoes.fit-rounds.store', $libraryShoe) }}" enctype="multipart/form-data" class="flex flex-col gap-3 rounded-xl border border-rose-200 p-4">
+                            @csrf
+                            <div>
+                                <h3 class="font-semibold">It needs fixing</h3>
+                                <p class="mt-1 text-sm text-slate-500">Sent to the n8n re-optimize workflow; Claude changes the fit only, no new AR files are built.</p>
+                            </div>
+
+                            @unless ($isReoptimizeConfigured)
+                                <p role="alert" class="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Set <code>N8N_REOPTIMIZE_URL</code> and <code>N8N_SHOPAR_KEY</code> to send fixes to Claude.</p>
+                            @endunless
+
+                            <div class="flex flex-col gap-1.5">
+                                <label for="comment" class="text-sm font-semibold">What looks wrong?</label>
+                                <textarea id="comment" name="comment" rows="3" required minlength="5" maxlength="1000" placeholder="e.g. The heel sticks out behind my foot and the shoe floats above the floor." class="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none">{{ old('comment') }}</textarea>
+                                @error('comment')
+                                    <p class="text-sm text-rose-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+
+                            <div class="flex flex-col gap-1.5">
+                                <label for="screenshot" class="text-sm font-semibold">Try-on screenshot <span class="font-normal text-slate-500">· optional, JPEG, PNG or WebP up to 5 MB</span></label>
+                                <input id="screenshot" name="screenshot" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" class="text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-4 file:py-2 file:font-medium">
+                                @error('screenshot')
+                                    <p class="text-sm text-rose-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+
+                            <button type="submit" @disabled(! $isReoptimizeConfigured || $isFitRoundProcessing) class="inline-flex h-11 items-center self-start rounded-lg border border-rose-300 px-5 text-sm font-medium text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50">Send to Claude</button>
+                        </form>
+                    </div>
+
+                    @if ($fitRounds->isNotEmpty())
+                        <div>
+                            <h3 class="text-sm font-semibold">Fit rounds</h3>
+                            <ul class="mt-2 divide-y divide-slate-200 border-y border-slate-200">
+                                @foreach ($fitRounds as $round)
+                                    <li class="flex flex-col gap-1.5 py-3">
+                                        <div class="flex flex-wrap items-center justify-between gap-2">
+                                            <p class="text-sm text-slate-500">
+                                                <time datetime="{{ $round->created_at->toIso8601String() }}" title="{{ $round->created_at->toDayDateTimeString() }}">{{ $round->created_at->diffForHumans() }}</time>
+                                                @if ($round->user) · {{ $round->user->name }} @endif
+                                            </p>
+                                            <span class="rounded-full px-2.5 py-1 text-xs font-medium {{ $round->status->badgeClasses() }}">{{ $round->status->label() }}</span>
+                                        </div>
+                                        <p class="text-sm">“{{ $round->comment }}”</p>
+                                        @if ($round->message)
+                                            <p class="text-sm {{ $round->status === \App\ShoeFitRoundStatus::Failed ? 'text-rose-600' : 'text-slate-600' }}">{{ $round->message }}</p>
+                                        @endif
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
+                    <p class="text-xs text-slate-500">Want to set the fit by hand? <a href="{{ route('admin.shoes.edit', $libraryShoe) }}" class="font-medium text-brand-900 underline">Edit the AR fit</a>.</p>
+                </section>
+
+                <script>
+                    document.querySelectorAll('[data-copy-link]').forEach((button) => {
+                        button.addEventListener('click', async () => {
+                            try {
+                                await navigator.clipboard.writeText(button.dataset.copyLink);
+                                button.textContent = 'Link copied';
+                            } catch {
+                                window.prompt('Copy this link', button.dataset.copyLink);
+                            }
+                        });
+                    });
+                </script>
             @elseif ($libraryShoe)
                 <section class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
-                    <p class="text-sm text-slate-600">This shoe is in the library{{ $libraryShoe->is_visible ? '' : ', hidden' }}.</p>
+                    <p class="text-sm text-slate-600">
+                        @if ($status === \App\ShoeSubmissionStatus::Published)
+                            This shoe passed its try-on review and is {{ $libraryShoe->is_visible ? 'visible on the site' : 'in the library, hidden' }}.
+                        @else
+                            This shoe is in the library{{ $libraryShoe->is_visible ? '' : ', hidden' }}.
+                        @endif
+                    </p>
                     <a href="{{ route('admin.shoes.edit', $libraryShoe) }}" class="btn-flame">Edit and re-optimize</a>
                 </section>
             @endif

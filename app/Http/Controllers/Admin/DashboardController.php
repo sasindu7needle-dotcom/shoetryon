@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Shoe;
+use App\Models\ShoeSubmission;
+use App\ShoeSubmissionStatus;
 use Illuminate\Contracts\View\View;
 
 class DashboardController extends Controller
@@ -18,7 +20,16 @@ class DashboardController extends Controller
         $total = Shoe::query()->count();
         $visible = Shoe::query()->visible()->count();
 
+        $awaitingStatuses = ShoeSubmissionStatus::awaitingAdmin();
+        $awaitingReview = ShoeSubmission::query()
+            ->whereIn('status', $awaitingStatuses)
+            ->latest()
+            ->get()
+            ->sortBy(fn (ShoeSubmission $submission) => array_search($submission->status, $awaitingStatuses, true))
+            ->values();
+
         return view('admin.dashboard', [
+            'awaitingReview' => $awaitingReview,
             'visibleShoes' => Shoe::query()->visible()->ordered()->limit(self::PREVIEW_LIMIT)->get(),
             'stats' => [
                 'total' => $total,

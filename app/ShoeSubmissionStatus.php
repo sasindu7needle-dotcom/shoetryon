@@ -36,7 +36,7 @@ enum ShoeSubmissionStatus: string
             self::ModelReady => 'Model to review',
             self::ModelApproved => 'Model approved',
             self::Rejected => 'Model rejected',
-            self::ReadyForReview => 'Ready for phone test',
+            self::ReadyForReview => 'Try-on review',
             self::Published => 'Published',
         };
     }
@@ -55,6 +55,29 @@ enum ShoeSubmissionStatus: string
             self::ReadyForReview => 'bg-brand-500/10 text-brand-900',
             self::Published => 'bg-emerald-100 text-emerald-700',
         };
+    }
+
+    /**
+     * What the admin has to do next for a shoe in this status, if anything.
+     */
+    public function nextStep(): ?string
+    {
+        return match ($this) {
+            self::ModelReady => 'Check the 3D model against the photo, then approve or reject it.',
+            self::ModelApproved => 'Build its .deepar effect in DeepAR Studio and upload it.',
+            self::ReadyForReview => 'Try it on live, then publish it or tell Claude what to fix.',
+            default => null,
+        };
+    }
+
+    /**
+     * Statuses where the shoe is waiting on the admin, most urgent first.
+     *
+     * @return list<self>
+     */
+    public static function awaitingAdmin(): array
+    {
+        return [self::ModelReady, self::ModelApproved, self::ReadyForReview];
     }
 
     /**

@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\ReviewShoeSubmissionRequest;
 use App\Http\Requests\Admin\StoreShoeSubmissionRequest;
 use App\Models\Shoe;
 use App\Models\ShoeSubmission;
+use App\ShoeFitRoundStatus;
 use App\ShoeSubmissionStatus;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Client\ConnectionException;
@@ -54,13 +55,18 @@ class ShoeSubmissionController extends Controller
     public function show(ShoeSubmission $submission): View
     {
         $disk = Storage::disk('shoe_assets');
+        $libraryShoe = Shoe::query()->where('slug', $submission->slug)->first();
+        $fitRounds = $libraryShoe?->fitRounds()->with('user')->latest('id')->limit(5)->get() ?? collect();
 
         return view('admin.shoe-submissions.show', [
             'submission' => $submission->load('user', 'reviewer'),
             'hasPhoto' => $submission->photo_path !== null && $disk->exists($submission->photo_path),
             'hasModel' => $submission->glb_path !== null && $disk->exists($submission->glb_path),
             'reviewChecks' => ReviewShoeSubmissionRequest::CHECKS,
-            'libraryShoe' => Shoe::query()->where('slug', $submission->slug)->first(),
+            'libraryShoe' => $libraryShoe,
+            'fitRounds' => $fitRounds,
+            'isFitRoundProcessing' => $fitRounds->contains('status', ShoeFitRoundStatus::Processing),
+            'isReoptimizeConfigured' => filled(config('services.n8n.reoptimize_url')) && filled(config('services.n8n.shopar_key')),
         ]);
     }
 
