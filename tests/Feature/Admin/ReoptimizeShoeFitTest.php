@@ -71,7 +71,7 @@ class ReoptimizeShoeFitTest extends TestCase
             ->assertSessionHasNoErrors();
 
         Http::assertSent(fn (Request $request) => $request['renderer'] === 'glb_on_feet'
-            && str_contains($request['fit_guide'], '1 = one foot long')
+            && str_contains($request['fit_guide'], 'sole is turned down')
             && $request['shoe']['fit'] == Shoe::FEET_DEFAULT_FIT
             && (array) $request['reference_fits'] === []);
     }

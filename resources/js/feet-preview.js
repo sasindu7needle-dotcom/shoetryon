@@ -2,8 +2,9 @@ import * as deepar from 'deepar';
 import { DEFAULT_FIT, FeetRenderer, startFootTrackingOnly } from './feet-renderer.js';
 
 // The admin's "preview on my feet" page: Tripo's GLB on the tracked feet,
-// before the shoe is approved. The shoe is fitted automatically (centred on
-// each foot, one foot long, along the foot); that fit is saved to the
+// before the shoe is approved. The shoe is fitted automatically (turned from
+// its shape so the sole is down and the toes forward, and stood on each foot's
+// sole, see feet-renderer.js); that fit is saved to the
 // submission and becomes the shoe's starting fit. A photo of the try-on can
 // be sent to Claude, whose better fit replaces the automatic one.
 

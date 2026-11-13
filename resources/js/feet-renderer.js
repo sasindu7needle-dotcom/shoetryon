@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { detectShoeAxes, orientationMatrix, sampleSurface } from './shoe-orientation.js';
 
 // Draws a shoe's GLB on the feet DeepAR tracks, on a transparent canvas above
 // DeepAR's camera view. Shoes built in DeepAR Studio don't need this; it is
@@ -63,26 +64,47 @@ function makeWearer() {
     return { wearer, foot, leg };
 }
 
-// Centres the model and scales it so its longest side is a foot long, with
-// that side along the foot's length (z), whatever units and facing Tripo used.
-// Remembers the resulting bounds, which the foot and leg occluders are sized from.
-function normalise(model) {
-    const box = new THREE.Box3().setFromObject(model);
-    const size = box.getSize(new THREE.Vector3());
-    model.position.sub(box.getCenter(new THREE.Vector3()));
+// Where a shoe stands on DeepAR's right foot, in tracker units: the middle of
+// its sole goes here. The foot occluder runs from the heel at z = -14.8 to the
+// toes at z = 5.9 with its sole at y = -1.9, sitting a little towards the big
+// toe (+x). Measured from the sample shoes whose DeepAR effects were fitted on
+// phones (config/shoes.php): their soles sit at y = -1.8, their middles at
+// z = -3.9 to -4.9 and x = 0.55 to 0.77, and they are 23 to 26 units long.
+export const SHOE_SEAT = [0.7, -1.82, -4.6];
+export const SHOE_LENGTH = 25;
 
+// Stands the model on the foot whatever axes, facing, side and units the
+// generator used: its shape says which way is down, where the toes are and
+// whether it is a left or a right shoe (see shoe-orientation.js). It is then
+// turned to sole down (-y), toes forward (+z) and big toe on +x, scaled to
+// SHOE_LENGTH, and moved so the middle of its sole is at the origin, so a fit's
+// scale and rotation work around the sole instead of lifting the shoe off it.
+// Remembers the resulting bounds, which the foot and leg occluders are sized
+// from, and what was detected, for the debug readout.
+function normalise(model) {
     const holder = new THREE.Group();
     holder.add(model);
-    if (size.x > size.z) {
-        holder.rotation.y = Math.PI / 2;
-    }
-    holder.scale.setScalar(FOOT_LENGTH / (Math.max(size.x, size.z) || 1));
-
+    const axes = detectShoeAxes(sampleSurface(model));
+    holder.applyMatrix4(orientationMatrix(axes));
     holder.updateMatrixWorld(true);
-    const bounds = new THREE.Box3().setFromObject(holder);
-    holder.userData.bounds = { min: bounds.min.toArray(), max: bounds.max.toArray() };
 
-    return holder;
+    const box = new THREE.Box3().setFromObject(holder);
+    const size = box.getSize(new THREE.Vector3());
+    const scale = SHOE_LENGTH / (size.z || 1);
+    const soleMiddle = new THREE.Vector3((box.min.x + box.max.x) / 2, box.min.y, (box.min.z + box.max.z) / 2);
+    const placed = new THREE.Group();
+    placed.add(holder);
+    placed.scale.setScalar(scale);
+    placed.position.copy(soleMiddle).multiplyScalar(-scale);
+
+    const shoe = new THREE.Group();
+    shoe.add(placed);
+    shoe.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(shoe);
+    shoe.userData.bounds = { min: bounds.min.toArray(), max: bounds.max.toArray() };
+    shoe.userData.orientation = axes;
+
+    return shoe;
 }
 
 export class FeetRenderer {
@@ -116,24 +138,28 @@ export class FeetRenderer {
         this.legMask = false;
         this.active = false;
 
-        // One anchor per foot follows the tracker. Inside it, `fitted` carries
-        // the shoe's fit; the left foot is mirrored across the foot's x axis,
-        // the same way DeepAR Studio's template builds the left shoe.
+        // One anchor per foot follows the tracker. Inside it, `seat` puts the
+        // middle of the shoe's sole on the foot and `fitted` carries the
+        // shoe's fit around that point; the left foot is mirrored across the
+        // foot's x axis, the same way DeepAR Studio's template builds the left shoe.
         this.feet = ['right', 'left'].map((side) => {
             const anchor = new THREE.Group();
             // Converts the shoe from tracker units (24 per foot) to whatever
             // units the tracker actually reports in.
             const units = new THREE.Group();
             const mirror = new THREE.Group();
+            const seat = new THREE.Group();
             const fitted = new THREE.Group();
             const { wearer, foot, leg } = makeWearer();
             mirror.scale.x = side === 'left' ? -1 : 1;
-            mirror.add(fitted);
+            seat.position.set(...SHOE_SEAT);
+            seat.add(fitted);
+            mirror.add(seat);
             units.add(mirror, wearer);
             anchor.add(units);
             anchor.visible = false;
             this.scene.add(anchor);
-            return { side, anchor, units, mirror, fitted, wearer, foot, leg };
+            return { side, anchor, units, mirror, seat, fitted, wearer, foot, leg };
         });
 
         new ResizeObserver(() => this.resize()).observe(stage);
@@ -209,6 +235,7 @@ export class FeetRenderer {
             foot.fitted.add(foot.side === 'right' ? model : model.clone());
         }
         this.modelBounds = model.userData.bounds;
+        this.modelOrientation = model.userData.orientation;
         this.setFit(fit, legMask);
         this.active = true;
         this.canvas.hidden = false;
@@ -244,9 +271,11 @@ export class FeetRenderer {
     layoutWearer(foot) {
         if (!this.modelBounds) return;
         foot.fitted.updateMatrix();
+        foot.seat.updateMatrix();
         foot.mirror.updateMatrix();
         const box = new THREE.Box3(new THREE.Vector3(...this.modelBounds.min), new THREE.Vector3(...this.modelBounds.max))
             .applyMatrix4(foot.fitted.matrix)
+            .applyMatrix4(foot.seat.matrix)
             .applyMatrix4(foot.mirror.matrix);
         const size = box.getSize(new THREE.Vector3());
         const centre = box.getCenter(new THREE.Vector3());
@@ -302,6 +331,12 @@ export class FeetRenderer {
         const numbers = (vector) => vector.toArray().map((value) => value.toFixed(2)).join(', ');
         this.scene.updateMatrixWorld();
         const lines = [`tracker space: ${this.convention ?? 'not seen yet'}, video ${this.video?.videoWidth ?? 0}×${this.video?.videoHeight ?? 0}`, `camera fov ${this.camera.fov.toFixed(1)}°, canvas ${this.renderer.domElement.width}×${this.renderer.domElement.height}, drawing ${this.active ? 'on' : 'off'}, canvas hidden ${this.canvas.hidden}`];
+        const orientation = this.modelOrientation;
+        if (orientation) {
+            const axis = (vector) => ['x', 'y', 'z'].map((name, i) => (Math.round(vector.getComponent(i)) ? `${vector.getComponent(i) > 0 ? '+' : '-'}${name}` : '')).join('');
+            const sure = Object.entries(orientation.confidence).map(([name, value]) => `${name} ${value.toFixed(2)}`).join(', ');
+            lines.push(`model: down ${axis(orientation.down)}, toes ${axis(orientation.toe)}, big toe ${axis(orientation.bigToe)}, ${orientation.isLeftShoe ? 'left' : 'right'} shoe (sure: ${sure})`);
+        }
         for (const foot of this.feet) {
             if (!foot.anchor.visible) {
                 lines.push(`${foot.side} shoe: not shown (foot not tracked)`);

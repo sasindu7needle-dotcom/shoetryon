@@ -1,13 +1,13 @@
 {
-  "_RoomEnvironment-C57dsoz2.js": {
-    "file": "assets/RoomEnvironment-C57dsoz2.js",
+  "_RoomEnvironment-CSDGHJXA.js": {
+    "file": "assets/RoomEnvironment-CSDGHJXA.js",
     "name": "RoomEnvironment"
   },
-  "_feet-renderer-C5lVPhLN.js": {
-    "file": "assets/feet-renderer-C5lVPhLN.js",
+  "_feet-renderer-owHLEGL5.js": {
+    "file": "assets/feet-renderer-owHLEGL5.js",
     "name": "feet-renderer",
     "imports": [
-      "_RoomEnvironment-C57dsoz2.js"
+      "_RoomEnvironment-CSDGHJXA.js"
     ]
   },
   "_figtree-400-normal-BD4aNku5.woff": {
@@ -55,7 +55,7 @@
     "src": "_fonts-CtIHHeqQ.css"
   },
   "resources/css/app.css": {
-    "file": "assets/app-x5pvghhM.css",
+    "file": "assets/app-CFBbbLCt.css",
     "name": "app",
     "names": [
       "app.css"
@@ -70,39 +70,39 @@
     "isEntry": true
   },
   "resources/js/feet-preview.js": {
-    "file": "assets/feet-preview-fr60WqYh.js",
+    "file": "assets/feet-preview-BqSPK6Bb.js",
     "name": "feet-preview",
     "src": "resources/js/feet-preview.js",
     "isEntry": true,
     "imports": [
-      "_feet-renderer-C5lVPhLN.js"
+      "_feet-renderer-owHLEGL5.js"
     ]
   },
   "resources/js/landing.js": {
-    "file": "assets/landing-CTshxY4u.js",
+    "file": "assets/landing-BQyEANRW.js",
     "name": "landing",
     "src": "resources/js/landing.js",
     "isEntry": true,
     "imports": [
-      "_RoomEnvironment-C57dsoz2.js"
+      "_RoomEnvironment-CSDGHJXA.js"
     ]
   },
   "resources/js/model-preview.js": {
-    "file": "assets/model-preview-DBW2QxV8.js",
+    "file": "assets/model-preview-CwiQWzOy.js",
     "name": "model-preview",
     "src": "resources/js/model-preview.js",
     "isEntry": true,
     "imports": [
-      "_RoomEnvironment-C57dsoz2.js"
+      "_RoomEnvironment-CSDGHJXA.js"
     ]
   },
   "resources/js/tryon.js": {
-    "file": "assets/tryon-8S35rUb_.js",
+    "file": "assets/tryon-pocur8TI.js",
     "name": "tryon",
     "src": "resources/js/tryon.js",
     "isEntry": true,
     "imports": [
-      "_feet-renderer-C5lVPhLN.js"
+      "_feet-renderer-owHLEGL5.js"
     ]
   }
 }

@@ -24,9 +24,10 @@ class Shoe extends Model
     public const FALLBACK_TRACKER_EFFECT = 'effects/shoes/canvas-sneaker.deepar';
 
     /**
-     * Where a shoe worn as its GLB starts on the foot: its longest side one
-     * foot long, centred on the tracked foot. Rotation is in degrees and
-     * position in DeepAR foot units (a foot is about 24 long).
+     * Where a shoe worn as its GLB starts on the foot: no change to where the
+     * feet renderer stands it (turned from the model's shape, sole on the
+     * tracked foot). Rotation is in degrees and position in DeepAR foot units
+     * (a foot is about 24 long).
      *
      * @var array{scale: float, rotation: list<float>, position: list<float>}
      */
