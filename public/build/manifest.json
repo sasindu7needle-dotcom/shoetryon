@@ -1,0 +1,89 @@
+{
+  "_RoomEnvironment-piAzC7oM.js": {
+    "file": "assets/RoomEnvironment-piAzC7oM.js",
+    "name": "RoomEnvironment"
+  },
+  "_figtree-400-normal-BD4aNku5.woff": {
+    "file": "assets/figtree-400-normal-BD4aNku5.woff",
+    "src": "_figtree-400-normal-BD4aNku5.woff"
+  },
+  "_figtree-400-normal-g7Dtegnw.woff2": {
+    "file": "assets/figtree-400-normal-g7Dtegnw.woff2",
+    "src": "_figtree-400-normal-g7Dtegnw.woff2"
+  },
+  "_figtree-500-normal-BWnGEVsr.woff2": {
+    "file": "assets/figtree-500-normal-BWnGEVsr.woff2",
+    "src": "_figtree-500-normal-BWnGEVsr.woff2"
+  },
+  "_figtree-500-normal-B_yy1phn.woff": {
+    "file": "assets/figtree-500-normal-B_yy1phn.woff",
+    "src": "_figtree-500-normal-B_yy1phn.woff"
+  },
+  "_figtree-600-normal-BM_oTo4n.woff": {
+    "file": "assets/figtree-600-normal-BM_oTo4n.woff",
+    "src": "_figtree-600-normal-BM_oTo4n.woff"
+  },
+  "_figtree-600-normal-Cv_xCTDl.woff2": {
+    "file": "assets/figtree-600-normal-Cv_xCTDl.woff2",
+    "src": "_figtree-600-normal-Cv_xCTDl.woff2"
+  },
+  "_figtree-700-normal-BCCt2T1q.woff": {
+    "file": "assets/figtree-700-normal-BCCt2T1q.woff",
+    "src": "_figtree-700-normal-BCCt2T1q.woff"
+  },
+  "_figtree-700-normal-th6qEP7c.woff2": {
+    "file": "assets/figtree-700-normal-th6qEP7c.woff2",
+    "src": "_figtree-700-normal-th6qEP7c.woff2"
+  },
+  "_figtree-800-normal-30yxI7TZ.woff2": {
+    "file": "assets/figtree-800-normal-30yxI7TZ.woff2",
+    "src": "_figtree-800-normal-30yxI7TZ.woff2"
+  },
+  "_figtree-800-normal-B7vj2UK8.woff": {
+    "file": "assets/figtree-800-normal-B7vj2UK8.woff",
+    "src": "_figtree-800-normal-B7vj2UK8.woff"
+  },
+  "_fonts-CtIHHeqQ.css": {
+    "file": "assets/fonts-CtIHHeqQ.css",
+    "src": "_fonts-CtIHHeqQ.css"
+  },
+  "resources/css/app.css": {
+    "file": "assets/app-_YYnpX5H.css",
+    "name": "app",
+    "names": [
+      "app.css"
+    ],
+    "src": "resources/css/app.css",
+    "isEntry": true
+  },
+  "resources/js/app.js": {
+    "file": "assets/app-BvRk9kiK.js",
+    "name": "app",
+    "src": "resources/js/app.js",
+    "isEntry": true
+  },
+  "resources/js/landing.js": {
+    "file": "assets/landing-BeAXY7HX.js",
+    "name": "landing",
+    "src": "resources/js/landing.js",
+    "isEntry": true,
+    "imports": [
+      "_RoomEnvironment-piAzC7oM.js"
+    ]
+  },
+  "resources/js/model-preview.js": {
+    "file": "assets/model-preview-4CsJbBPH.js",
+    "name": "model-preview",
+    "src": "resources/js/model-preview.js",
+    "isEntry": true,
+    "imports": [
+      "_RoomEnvironment-piAzC7oM.js"
+    ]
+  },
+  "resources/js/tryon.js": {
+    "file": "assets/tryon-DyKni4dB.js",
+    "name": "tryon",
+    "src": "resources/js/tryon.js",
+    "isEntry": true
+  }
+}
