@@ -78,9 +78,11 @@ export class FeetRenderer {
 
         // A near plane small enough for a tracker that reports in metres.
         this.camera = new THREE.PerspectiveCamera(60, 1, 0.001, 10000);
-        // The tan of half the long side's field of view of the camera frame;
-        // DeepAR's onFootTrackingInitialized can refine it.
-        this.longSideTan = Math.tan((trackerLongSideFov() / 2) * DEG);
+        // The tan of half the vertical field of view the foot tracker assumes.
+        // DeepAR starts the tracker with the long-side angle squeezed onto the
+        // short side of a 640×360 frame (see initializeDeepAR in the SDK);
+        // onFootTrackingInitialized reports the same angle.
+        this.trackerVerticalTan = Math.tan((trackerLongSideFov() / 2) * DEG) / (640 / 360);
         this.video = null;
         this.viewKey = '';
         this.convention = null;
@@ -130,11 +132,10 @@ export class FeetRenderer {
         this.viewKey = '';
     }
 
-    // DeepAR reports the vertical field of view of its 640×360 tracking
-    // frame, i.e. across the frame's short side.
+    // The vertical field of view DeepAR started the foot tracker with.
     setFieldOfView(fovY) {
         if (!fovY) return;
-        this.longSideTan = Math.tan((fovY / 2) * DEG) * (640 / 360);
+        this.trackerVerticalTan = Math.tan((fovY / 2) * DEG);
         this.viewKey = '';
         this.matchCameraView();
     }
@@ -142,21 +143,24 @@ export class FeetRenderer {
     // DeepAR draws the camera frame to cover the stage, cropping whatever
     // sticks out. The 3D camera gets the field of view of the visible part,
     // so a point the tracker puts on the foot lands on the foot on screen.
+    // The tracker applies its field of view to the height of the frame it is
+    // given, whichever way round that frame is: on a phone held upright the
+    // frame is portrait, so the angle spans the long side. Treating it as the
+    // short side made the camera ~1.8× too wide, drawing the shoes too small
+    // and pulled towards the middle of the screen.
     matchCameraView() {
         const { clientWidth: width, clientHeight: height } = this.stage;
         const videoWidth = this.video?.videoWidth || 0;
         const videoHeight = this.video?.videoHeight || 0;
-        const key = `${width}x${height}:${videoWidth}x${videoHeight}:${this.longSideTan}`;
+        const key = `${width}x${height}:${videoWidth}x${videoHeight}:${this.trackerVerticalTan}`;
         if (key === this.viewKey || !width || !height) return;
         this.viewKey = key;
 
         this.camera.aspect = width / height;
         if (videoWidth && videoHeight) {
-            const shortSideTan = this.longSideTan * (Math.min(videoWidth, videoHeight) / Math.max(videoWidth, videoHeight));
-            const frameVerticalTan = videoHeight >= videoWidth ? this.longSideTan : shortSideTan;
             const cover = Math.max(width / videoWidth, height / videoHeight);
             const visibleHeight = height / (videoHeight * cover);
-            this.camera.fov = (2 * Math.atan(frameVerticalTan * visibleHeight)) / DEG;
+            this.camera.fov = (2 * Math.atan(this.trackerVerticalTan * visibleHeight)) / DEG;
         }
         this.camera.updateProjectionMatrix();
     }

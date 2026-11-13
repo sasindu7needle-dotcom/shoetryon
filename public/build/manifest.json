@@ -3,8 +3,8 @@
     "file": "assets/RoomEnvironment-DasW8hTZ.js",
     "name": "RoomEnvironment"
   },
-  "_feet-renderer-DiOR5Qe_.js": {
-    "file": "assets/feet-renderer-DiOR5Qe_.js",
+  "_feet-renderer-D44ymLjN.js": {
+    "file": "assets/feet-renderer-D44ymLjN.js",
     "name": "feet-renderer",
     "imports": [
       "_RoomEnvironment-DasW8hTZ.js"
@@ -55,7 +55,7 @@
     "src": "_fonts-CtIHHeqQ.css"
   },
   "resources/css/app.css": {
-    "file": "assets/app-6UtenOFr.css",
+    "file": "assets/app-_P-pZQ1E.css",
     "name": "app",
     "names": [
       "app.css"
@@ -70,12 +70,12 @@
     "isEntry": true
   },
   "resources/js/feet-preview.js": {
-    "file": "assets/feet-preview-COixc9Ln.js",
+    "file": "assets/feet-preview-B6VTzXDU.js",
     "name": "feet-preview",
     "src": "resources/js/feet-preview.js",
     "isEntry": true,
     "imports": [
-      "_feet-renderer-DiOR5Qe_.js"
+      "_feet-renderer-D44ymLjN.js"
     ]
   },
   "resources/js/landing.js": {
@@ -97,12 +97,12 @@
     ]
   },
   "resources/js/tryon.js": {
-    "file": "assets/tryon-CXck5PQZ.js",
+    "file": "assets/tryon-Cl8gHum_.js",
     "name": "tryon",
     "src": "resources/js/tryon.js",
     "isEntry": true,
     "imports": [
-      "_feet-renderer-DiOR5Qe_.js"
+      "_feet-renderer-D44ymLjN.js"
     ]
   }
 }

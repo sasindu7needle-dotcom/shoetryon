@@ -2,8 +2,9 @@ import * as deepar from 'deepar';
 import { DEFAULT_FIT, FeetRenderer, startFootTrackingOnly } from './feet-renderer.js';
 
 // The admin's "preview on my feet" page: Tripo's GLB on the tracked feet,
-// before the shoe is approved. The admin lines it up with the buttons; the
-// fit is saved to the submission and becomes the shoe's starting fit.
+// before the shoe is approved. The shoe is fitted automatically (centred on
+// each foot, one foot long, along the foot); that fit is saved to the
+// submission and becomes the shoe's starting fit.
 
 const config = window.FEET_PREVIEW;
 const stage = document.getElementById('feet-stage');
@@ -13,13 +14,12 @@ const statusAction = status.querySelector('[data-status-action]');
 const busy = status.querySelector('[data-busy]');
 const hint = document.getElementById('feet-hint');
 const savedNote = document.getElementById('feet-saved');
-const legMaskButton = document.querySelector('[data-adjust="leg"]');
+const legMaskButton = document.querySelector('[data-leg-mask]');
 
 const reload = { label: 'Reload', run: () => location.reload() };
 const feetRenderer = new FeetRenderer(stage, document.getElementById('feet-shoes'));
 
-const copyFit = (fit) => ({ scale: fit.scale, rotation: [...fit.rotation], position: [...fit.position] });
-let fit = copyFit({ ...DEFAULT_FIT, ...config.fit });
+const fit = { scale: DEFAULT_FIT.scale, rotation: [...DEFAULT_FIT.rotation], position: [...DEFAULT_FIT.position] };
 let legMask = config.legMask;
 
 function showStatus(message, { isBusy = true, action = null } = {}) {
@@ -39,7 +39,6 @@ let saveTimer = null;
 
 function scheduleSave() {
     if (!config.saveUrl) return;
-    savedNote.textContent = 'Saving…';
     clearTimeout(saveTimer);
     saveTimer = setTimeout(save, 600);
 }
@@ -55,7 +54,7 @@ async function save() {
             },
             body: JSON.stringify({ fit, leg_mask: legMask }),
         });
-        savedNote.textContent = response.ok ? 'Fit saved' : `Could not save the fit (error ${response.status}). Reload and try again.`;
+        savedNote.textContent = response.ok ? 'Fitted automatically to your feet.' : `Could not save the fit (error ${response.status}). Reload and try again.`;
     } catch {
         savedNote.textContent = 'Could not save the fit. Check your connection.';
     }
@@ -63,40 +62,24 @@ async function save() {
 
 // ---- controls ---------------------------------------------------------------------
 
-const wrap = (degrees) => ((((degrees + 180) % 360) + 360) % 360) - 180;
-const round = (value) => Math.round(value * 1000) / 1000;
-
-const adjusters = {
-    smaller: () => (fit.scale = round(fit.scale / 1.05)),
-    bigger: () => (fit.scale = round(fit.scale * 1.05)),
-    turn: () => (fit.rotation[1] = wrap(fit.rotation[1] + 90)),
-    flip: () => (fit.rotation[2] = wrap(fit.rotation[2] + 180)),
-    up: () => (fit.position[1] = round(fit.position[1] + 0.5)),
-    down: () => (fit.position[1] = round(fit.position[1] - 0.5)),
-    forward: () => (fit.position[2] = round(fit.position[2] + 0.5)),
-    back: () => (fit.position[2] = round(fit.position[2] - 0.5)),
-    leg: () => (legMask = !legMask),
-    reset: () => {
-        fit = copyFit(DEFAULT_FIT);
-        legMask = false;
-    },
-};
-
 function showLegMaskState() {
     legMaskButton.setAttribute('aria-pressed', String(legMask));
     legMaskButton.textContent = legMask ? 'Leg mask: on' : 'Leg mask: off';
 }
 
-for (const button of document.querySelectorAll('[data-adjust]')) {
-    button.disabled = !config.saveUrl && button.dataset.adjust !== 'leg';
-    button.addEventListener('click', () => {
-        adjusters[button.dataset.adjust]();
-        feetRenderer.setFit(fit, legMask);
-        showLegMaskState();
-        scheduleSave();
-    });
-}
+legMaskButton.addEventListener('click', () => {
+    legMask = !legMask;
+    feetRenderer.setFit(fit, legMask);
+    showLegMaskState();
+    scheduleSave();
+});
 showLegMaskState();
+
+// A fit saved by hand before the shoe was fitted automatically is replaced.
+const isSavedFitAutomatic = JSON.stringify(config.fit) === JSON.stringify(fit);
+if (!isSavedFitAutomatic) {
+    scheduleSave();
+}
 
 // ---- camera -----------------------------------------------------------------------
 
@@ -193,7 +176,7 @@ async function main() {
         const visible = left.detected || right.detected;
         if (visible !== feetVisible) {
             feetVisible = visible;
-            hint.textContent = visible ? 'Feet found. Line the shoe up with the buttons if it is off.' : 'Looking for feet… stand 1–2 m back, both feet in frame';
+            hint.textContent = visible ? 'Feet found. The shoe is fitted automatically.' : 'Looking for feet… stand 1–2 m back, both feet in frame';
         }
     };
     ar.initializeFootTracking();

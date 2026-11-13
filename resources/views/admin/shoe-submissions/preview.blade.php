@@ -31,26 +31,13 @@
             </p>
         </div>
 
-        {{-- Tripo's models come in their own size and facing, so the admin lines the shoe up once. The fit is saved and becomes the shoe's starting fit. --}}
+        {{-- The shoe is fitted automatically: centred on each tracked foot, one foot long and turned along it. --}}
         <div class="flex flex-col gap-2 px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-            <div class="grid grid-cols-4 gap-2 text-xs font-medium">
-                <button type="button" data-adjust="smaller" class="rounded-lg bg-white/15 py-2.5 transition active:bg-white/30 disabled:opacity-40">Smaller</button>
-                <button type="button" data-adjust="bigger" class="rounded-lg bg-white/15 py-2.5 transition active:bg-white/30 disabled:opacity-40">Bigger</button>
-                <button type="button" data-adjust="turn" class="rounded-lg bg-white/15 py-2.5 transition active:bg-white/30 disabled:opacity-40">Turn 90°</button>
-                <button type="button" data-adjust="flip" class="rounded-lg bg-white/15 py-2.5 transition active:bg-white/30 disabled:opacity-40">Flip</button>
-                <button type="button" data-adjust="up" class="rounded-lg bg-white/15 py-2.5 transition active:bg-white/30 disabled:opacity-40">Up</button>
-                <button type="button" data-adjust="down" class="rounded-lg bg-white/15 py-2.5 transition active:bg-white/30 disabled:opacity-40">Down</button>
-                <button type="button" data-adjust="forward" class="rounded-lg bg-white/15 py-2.5 transition active:bg-white/30 disabled:opacity-40">Forward</button>
-                <button type="button" data-adjust="back" class="rounded-lg bg-white/15 py-2.5 transition active:bg-white/30 disabled:opacity-40">Back</button>
-            </div>
             <div class="flex items-center justify-between gap-2 text-xs">
-                <button type="button" data-adjust="leg" aria-pressed="false" class="rounded-lg bg-white/15 px-3 py-2 font-medium transition active:bg-white/30 disabled:opacity-40 aria-pressed:bg-emerald-500/40">Leg mask: off</button>
-                <p id="feet-saved" aria-live="polite" class="text-white/70">{{ $isAwaitingReview ? 'Changes are saved as the shoe’s starting fit.' : 'This shoe was already reviewed; changes are not saved.' }}</p>
+                <button type="button" data-leg-mask aria-pressed="false" class="rounded-lg bg-white/15 px-3 py-2 font-medium transition active:bg-white/30 aria-pressed:bg-emerald-500/40">Leg mask: off</button>
+                <p id="feet-saved" aria-live="polite" class="text-right text-white/70">{{ $isAwaitingReview ? 'Fitted automatically to your feet.' : 'Fitted automatically. This shoe was already reviewed; nothing is saved.' }}</p>
             </div>
-            <div class="flex gap-2">
-                <button type="button" data-adjust="reset" class="rounded-lg border border-white/25 px-4 py-2.5 text-xs font-medium transition active:bg-white/15">Reset</button>
-                <a href="{{ $reviewUrl }}#review" class="btn-flame flex-1 justify-center">{{ $isAwaitingReview ? 'Done, review it' : 'Back to the shoe' }}</a>
-            </div>
+            <a href="{{ $reviewUrl }}#review" class="btn-flame justify-center">{{ $isAwaitingReview ? 'Done, review it' : 'Back to the shoe' }}</a>
         </div>
     </main>
 
