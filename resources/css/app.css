@@ -11,10 +11,13 @@
     --color-flame: #ff4d00;
 }
 
-body {
-    background: var(--color-slate-50);
-    color: var(--color-slate-900);
-    -webkit-font-smoothing: antialiased;
+/* In the base layer, so a page's own body classes (bg-*, text-*) win */
+@layer base {
+    body {
+        background: var(--color-slate-50);
+        color: var(--color-slate-900);
+        -webkit-font-smoothing: antialiased;
+    }
 }
 
 /* Deep blue hero with a faint grid */

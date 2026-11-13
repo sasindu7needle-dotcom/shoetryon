@@ -55,7 +55,7 @@ async function save() {
             },
             body: JSON.stringify({ fit, leg_mask: legMask }),
         });
-        savedNote.textContent = response.ok ? 'Fit saved' : 'Could not save the fit. Reload and try again.';
+        savedNote.textContent = response.ok ? 'Fit saved' : `Could not save the fit (error ${response.status}). Reload and try again.`;
     } catch {
         savedNote.textContent = 'Could not save the fit. Check your connection.';
     }
@@ -126,6 +126,28 @@ function describeCameraError(error) {
     }
 }
 
+// ---- debug readout (add ?debug=1 to the URL) --------------------------------------
+
+const debug = new URLSearchParams(location.search).has('debug');
+
+function startDebugReadout(getFeet) {
+    feetRenderer.showMarkers();
+    const readout = document.createElement('pre');
+    readout.className = 'pointer-events-none absolute inset-x-2 bottom-2 z-10 overflow-hidden rounded-lg bg-black/70 p-2 text-[10px] leading-tight whitespace-pre-wrap text-white';
+    stage.append(readout);
+    const numbers = (values) => (values ? Array.from(values, (value) => Number(value).toFixed(2)).join(', ') : '–');
+    setInterval(() => {
+        const feet = getFeet();
+        const raw = feet
+            ? ['left', 'right'].map((side) => {
+                const data = feet[side];
+                return `${side} raw: ${data.detected ? 'detected' : 'not detected'} pos (${numbers(data.position)}) scale (${numbers(data.scale)}) rot (${numbers(data.rotation)})`;
+            })
+            : ['no foot data from DeepAR yet'];
+        readout.textContent = [...raw, ...feetRenderer.describe()].join('\n');
+    }, 400);
+}
+
 // ---- start ------------------------------------------------------------------------
 
 async function main() {
@@ -161,7 +183,12 @@ async function main() {
 
     ar.callbacks.onFootTrackingInitialized = (fovY) => feetRenderer.setFieldOfView(fovY);
     let feetVisible = null;
+    let lastFeet = null;
+    if (debug) {
+        startDebugReadout(() => lastFeet);
+    }
     ar.callbacks.onFeetTracked = (left, right) => {
+        lastFeet = { left, right };
         feetRenderer.update(left, right);
         const visible = left.detected || right.detected;
         if (visible !== feetVisible) {

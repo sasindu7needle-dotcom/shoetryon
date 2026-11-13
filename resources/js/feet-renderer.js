@@ -146,6 +146,40 @@ export class FeetRenderer {
         }
     }
 
+    // Coloured axes on each tracked foot, so a debug session can see where the
+    // tracker puts the feet even when the shoe itself is out of view.
+    showMarkers() {
+        for (const foot of this.feet) {
+            const axes = new THREE.AxesHelper(12);
+            axes.material.depthTest = false;
+            axes.renderOrder = 10;
+            foot.anchor.add(axes);
+        }
+    }
+
+    // One line per foot: where its shoe ends up and how big it is, in the
+    // camera's view, for the debug readout.
+    describe() {
+        const numbers = (vector) => vector.toArray().map((value) => value.toFixed(2)).join(', ');
+        this.scene.updateMatrixWorld();
+        const lines = [`camera fov ${this.camera.fov.toFixed(1)}°, canvas ${this.renderer.domElement.width}×${this.renderer.domElement.height}, drawing ${this.active ? 'on' : 'off'}, canvas hidden ${this.canvas.hidden}`];
+        for (const foot of this.feet) {
+            if (!foot.anchor.visible) {
+                lines.push(`${foot.side} shoe: not shown (foot not tracked)`);
+                continue;
+            }
+            const box = new THREE.Box3().setFromObject(foot.fitted);
+            if (box.isEmpty()) {
+                lines.push(`${foot.side} shoe: no model loaded`);
+                continue;
+            }
+            const centre = box.getCenter(new THREE.Vector3());
+            const screen = centre.clone().project(this.camera);
+            lines.push(`${foot.side} shoe: size (${numbers(box.getSize(new THREE.Vector3()))}) at (${numbers(centre)}), distance ${centre.length().toFixed(1)}, screen (${screen.x.toFixed(2)}, ${screen.y.toFixed(2)}) depth ${screen.z.toFixed(2)}`);
+        }
+        return lines;
+    }
+
     // DeepAR's onFeetTracked data: position, quaternion rotation and scale of
     // each foot in its camera space.
     update(left, right) {
