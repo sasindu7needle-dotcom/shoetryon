@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Shoe;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\Request;
 
 class TryOnController extends Controller
 {
@@ -20,10 +22,23 @@ class TryOnController extends Controller
 
     /**
      * Lists the shoes that can be tried on first, so phones show them without swiping.
+     * `?preview=<id>` adds that shoe even while it is hidden, listed first: n8n
+     * emails this link so a new shoe can be tested on a phone before it is published.
      */
-    public function show(): View
+    public function show(Request $request): View
     {
-        $shoes = collect($this->shoes())->sortByDesc('ready')->values()->all();
+        $shoes = collect($this->shoes())->sortByDesc('ready')->values();
+        $previewSlug = $request->string('preview')->toString();
+
+        if ($previewSlug !== '' && ! $shoes->contains('id', $previewSlug)) {
+            $previewShoe = Shoe::query()->where('slug', $previewSlug)->first();
+
+            if ($previewShoe !== null) {
+                $shoes->prepend([...$this->present($previewShoe), 'name' => $previewShoe->name.' (preview)']);
+            }
+        }
+
+        $shoes = $shoes->all();
 
         return view('tryon', [
             'shoes' => $shoes,
@@ -33,15 +48,30 @@ class TryOnController extends Controller
         ]);
     }
 
+    /**
+     * The shoes shown on the site, in the order set in the admin shoe library.
+     *
+     * @return list<array{id: string, name: string, glb: string, thumb: string, effect: string, fit: ?array<string, mixed>, ready: bool}>
+     */
     private function shoes(): array
     {
-        return collect(config('shoes'))->map(fn (array $shoe) => [
-            ...$shoe,
-            'thumb' => asset($shoe['thumb']),
-            'glb' => asset($shoe['glb']),
-            'effect' => $this->versionedAsset($shoe['effect']),
-            'ready' => file_exists(public_path($shoe['effect'])),
-        ])->all();
+        return Shoe::query()->visible()->ordered()->get()->map(fn (Shoe $shoe) => $this->present($shoe))->all();
+    }
+
+    /**
+     * @return array{id: string, name: string, glb: string, thumb: string, effect: string, fit: ?array<string, mixed>, ready: bool}
+     */
+    private function present(Shoe $shoe): array
+    {
+        return [
+            'id' => $shoe->slug,
+            'name' => $shoe->name,
+            'thumb' => asset($shoe->thumb),
+            'glb' => asset($shoe->glb),
+            'effect' => $this->versionedAsset($shoe->effect),
+            'fit' => $shoe->fit,
+            'ready' => $shoe->isArReady(),
+        ];
     }
 
     /**

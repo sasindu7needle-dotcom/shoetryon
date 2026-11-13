@@ -37,11 +37,13 @@
                 <div class="size-10 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
             </div>
 
-            <ul class="absolute right-5 top-1/2 flex -translate-y-1/2 flex-col gap-3 rounded-full bg-white/20 p-2.5 backdrop-blur-md sm:right-8">
+            {{-- A swipeable row above the model on phones, so it never covers the shoe; a column beside it
+                 on larger screens. Either scrolls when the collection has more shoes than fit. --}}
+            <ul class="no-scrollbar absolute top-0 left-1/2 flex max-w-[calc(100%-2.5rem)] -translate-x-1/2 flex-row gap-2 overflow-x-auto rounded-full bg-white/20 p-2 backdrop-blur-md sm:top-1/2 sm:right-8 sm:left-auto sm:max-h-full sm:max-w-none sm:translate-x-0 sm:-translate-y-1/2 sm:flex-col sm:gap-3 sm:overflow-x-visible sm:overflow-y-auto sm:rounded-[3rem] sm:p-2.5">
                 @foreach ($shoes as $i => $shoe)
-                    <li>
+                    <li class="shrink-0">
                         <button type="button" data-shoe="{{ $shoe['id'] }}" aria-pressed="{{ $i === 0 ? 'true' : 'false' }}" aria-label="View {{ $shoe['name'] }}"
-                                class="shoe-dot block size-14 sm:size-20">
+                                class="shoe-dot block size-12 shrink-0 sm:size-20">
                             <img src="{{ $shoe['thumb'] }}" alt="" class="size-full object-cover" loading="lazy">
                         </button>
                     </li>
@@ -49,7 +51,7 @@
             </ul>
 
             <div class="absolute bottom-2 left-1/2 flex -translate-x-1/2 flex-col items-center gap-3">
-                <p id="shoe-name" class="text-sm font-medium text-white/90">{{ $shoes[0]['name'] }}</p>
+                <p id="shoe-name" class="text-sm font-medium text-white/90">{{ $shoes[0]['name'] ?? '' }}</p>
                 <a href="{{ route('tryon') }}" data-tryon-link class="btn-white">Try On</a>
             </div>
         </div>
@@ -67,12 +69,13 @@
                         <div class="aspect-square overflow-hidden bg-slate-100">
                             <img src="{{ $shoe['thumb'] }}" alt="{{ $shoe['name'] }}" class="size-full object-cover transition duration-500 group-hover:scale-105" loading="lazy">
                         </div>
-                        <div class="flex items-center justify-between gap-2 p-4">
-                            <span class="font-semibold">{{ $shoe['name'] }}</span>
+                        {{-- Name and badge stack in the narrow two-column grid on phones. --}}
+                        <div class="flex flex-col items-start gap-1.5 p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-2 sm:p-4">
+                            <span class="text-sm leading-snug font-semibold sm:text-base">{{ $shoe['name'] }}</span>
                             @if ($shoe['ready'])
-                                <span class="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700">AR ready</span>
+                                <span class="shrink-0 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium whitespace-nowrap text-emerald-700">AR ready</span>
                             @else
-                                <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-500">3D only</span>
+                                <span class="shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium whitespace-nowrap text-slate-500">3D only</span>
                             @endif
                         </div>
                     </a>

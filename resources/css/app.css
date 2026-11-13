@@ -89,6 +89,10 @@ body {
 .shoe-card:not(:disabled):hover { transform: translateY(-3px); box-shadow: 0 10px 25px -10px rgb(15 23 42 / 0.25); }
 .shoe-card[aria-pressed='true'] { border-color: var(--color-brand-900); box-shadow: 0 0 0 2px var(--color-brand-900); }
 
+/* Scrolls without showing a scrollbar, for compact thumbnail strips */
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
 /* Small orange dots scattered on light sections */
 .flame-dots {
     background-image: radial-gradient(var(--color-flame) 1.5px, transparent 1.5px);
