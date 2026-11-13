@@ -18,6 +18,12 @@ class Shoe extends Model
     use HasFactory;
 
     /**
+     * A bundled shoe effect, used only to start DeepAR's foot tracking when no
+     * shoe in the library has an effect of its own.
+     */
+    public const FALLBACK_TRACKER_EFFECT = 'effects/shoes/canvas-sneaker.deepar';
+
+    /**
      * Where a shoe worn as its GLB starts on the foot: its longest side one
      * foot long, centred on the tracked foot. Rotation is in degrees and
      * position in DeepAR foot units (a foot is about 24 long).
@@ -105,14 +111,20 @@ class Shoe extends Model
 
     /**
      * A shoe effect the try-on can load only to run DeepAR's foot tracking,
-     * with its own shoe hidden, when it shows a shoe worn as its GLB. Null
-     * when no shoe has an effect on disk.
+     * with its own shoe hidden, when it shows a shoe worn as its GLB. DeepAR
+     * does not track feet without an effect loaded, so when no shoe in the
+     * library has one on disk the bundled sample effect is used. Null only
+     * when that file is missing too.
      */
     public static function trackerEffectUrl(): ?string
     {
         $shoe = static::query()->whereNotNull('effect')->ordered()->get()->first(fn (Shoe $shoe) => $shoe->isArReady());
 
-        return $shoe === null ? null : asset($shoe->effect);
+        if ($shoe !== null) {
+            return asset($shoe->effect);
+        }
+
+        return file_exists(public_path(self::FALLBACK_TRACKER_EFFECT)) ? asset(self::FALLBACK_TRACKER_EFFECT) : null;
     }
 
     /**

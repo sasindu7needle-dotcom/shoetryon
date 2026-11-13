@@ -47,6 +47,16 @@ class TryOnPageTest extends TestCase
             && collect($shoes)->firstWhere('id', $shoe->slug)['effect'] === null);
     }
 
+    public function test_glb_shoes_track_feet_with_the_bundled_effect_when_no_shoe_has_one(): void
+    {
+        Shoe::factory()->wornAsGlb()->create();
+
+        $response = $this->withoutVite()->get(route('tryon'));
+
+        $response->assertOk();
+        $response->assertViewHas('trackerEffect', asset(Shoe::FALLBACK_TRACKER_EFFECT));
+    }
+
     public function test_hidden_shoes_made_from_photos_can_be_previewed(): void
     {
         $shoe = Shoe::factory()->wornAsGlb()->hidden()->create(['name' => 'Photo Pump']);

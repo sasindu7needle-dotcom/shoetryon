@@ -133,6 +133,10 @@ async function main() {
         showStatus('Set DEEPAR_LICENSE_KEY in the environment, then reload.', { isBusy: false });
         return;
     }
+    if (!config.trackerEffect) {
+        showStatus('Foot tracking needs a shoe effect (.deepar) on the server, and none was found. Upload one to a shoe, then reload.', { isBusy: false });
+        return;
+    }
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
         showStatus(describeCameraError(null), { isBusy: false });
         return;
