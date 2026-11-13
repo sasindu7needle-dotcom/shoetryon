@@ -6,7 +6,9 @@ use App\Http\Controllers\Admin\ShoeController;
 use App\Http\Controllers\Admin\ShoeFitRoundController;
 use App\Http\Controllers\Admin\ShoePositionController;
 use App\Http\Controllers\Admin\ShoeSubmissionController;
+use App\Http\Controllers\Admin\ShoeSubmissionFileController;
 use App\Http\Controllers\Admin\ShoeSubmissionLibraryController;
+use App\Http\Controllers\Admin\ShoeSubmissionReviewController;
 use App\Http\Controllers\Admin\ShoeVisibilityController;
 use App\Http\Controllers\TryOnController;
 use Illuminate\Support\Facades\Route;
@@ -27,6 +29,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('shoes/new', [ShoeSubmissionController::class, 'create'])->name('shoe-submissions.create');
         Route::post('shoes/new', [ShoeSubmissionController::class, 'store'])->name('shoe-submissions.store');
         Route::get('shoes/new/{submission}', [ShoeSubmissionController::class, 'show'])->name('shoe-submissions.show');
+        Route::get('shoes/new/{submission}/files/{file}', [ShoeSubmissionFileController::class, 'show'])->whereIn('file', ['photo', 'model'])->name('shoe-submissions.files.show');
+        Route::post('shoes/new/{submission}/review', [ShoeSubmissionReviewController::class, 'store'])->name('shoe-submissions.review.store');
         Route::post('shoes/new/{submission}/library', [ShoeSubmissionLibraryController::class, 'store'])->name('shoe-submissions.library.store');
         Route::post('shoes/{shoe}/fit-rounds', [ShoeFitRoundController::class, 'store'])->name('shoes.fit-rounds.store');
 

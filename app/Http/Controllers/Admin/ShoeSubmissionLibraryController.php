@@ -19,13 +19,13 @@ class ShoeSubmissionLibraryController extends Controller
     public const EFFECT_FOLDER = 'effects/generated';
 
     /**
-     * Adds a shoe whose 3D model is ready to the library, hidden, with the
+     * Adds a shoe whose 3D model the admin approved to the library, hidden, with the
      * DeepAR effect the admin built from its GLB in DeepAR Studio. Its fit
      * starts empty, so the try-on keeps the placement Studio exported.
      */
     public function store(AddSubmissionToLibraryRequest $request, ShoeSubmission $submission): RedirectResponse
     {
-        abort_unless($submission->status === ShoeSubmissionStatus::ModelReady, 409, 'This shoe has no 3D model waiting for its effect.');
+        abort_unless($submission->status === ShoeSubmissionStatus::ModelApproved, 409, 'This shoe has no approved 3D model waiting for its effect.');
 
         if (Shoe::query()->where('slug', $submission->slug)->exists()) {
             return back()->with('error', "The library already has a shoe with the id “{$submission->slug}”.");

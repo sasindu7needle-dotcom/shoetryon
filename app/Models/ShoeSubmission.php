@@ -13,7 +13,7 @@ use Normalizer;
 /**
  * A new shoe the admin sent to the n8n workflow as one to four photos.
  */
-#[Fillable(['user_id', 'name', 'slug', 'shoe_type', 'length_cm', 'photo_path', 'glb_path', 'tripo_task_id', 'status', 'message'])]
+#[Fillable(['user_id', 'name', 'slug', 'shoe_type', 'length_cm', 'photo_path', 'glb_path', 'tripo_task_id', 'status', 'message', 'reviewed_by', 'reviewed_at', 'review_checks', 'review_note'])]
 class ShoeSubmission extends Model
 {
     /** @use HasFactory<ShoeSubmissionFactory> */
@@ -29,6 +29,8 @@ class ShoeSubmission extends Model
         return [
             'length_cm' => 'decimal:1',
             'status' => ShoeSubmissionStatus::class,
+            'reviewed_at' => 'datetime',
+            'review_checks' => 'array',
         ];
     }
 
@@ -38,6 +40,16 @@ class ShoeSubmission extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * The admin who approved or rejected the 3D model.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function reviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
     }
 
     /**

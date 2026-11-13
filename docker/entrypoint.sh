@@ -13,7 +13,9 @@ sed -ri "s/<VirtualHost \*:80>/<VirtualHost *:${PORT}>/" /etc/apache2/sites-avai
 
 mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs
 touch database/database.sqlite
-chown -R www-data:www-data storage bootstrap/cache database
+# The admin's new shoes (photo, Tripo GLB, DeepAR effect) are written under public/ by Apache's user.
+mkdir -p public/models/generated public/effects/generated
+chown -R www-data:www-data storage bootstrap/cache database public/models/generated public/effects/generated
 
 php artisan config:cache
 php artisan route:cache

@@ -31,6 +31,30 @@ class ShoeSubmissionFactory extends Factory
     }
 
     /**
+     * A submission whose 3D model n8n sent back, waiting for the admin's review.
+     */
+    public function modelReady(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status' => ShoeSubmissionStatus::ModelReady,
+            'photo_path' => fn (array $attributes) => 'models/generated/'.$attributes['slug'].'.jpg',
+            'glb_path' => fn (array $attributes) => 'models/generated/'.$attributes['slug'].'.glb',
+        ]);
+    }
+
+    /**
+     * A submission whose 3D model the admin approved, waiting for its DeepAR effect.
+     */
+    public function modelApproved(): static
+    {
+        return $this->modelReady()->state(fn (array $attributes) => [
+            'status' => ShoeSubmissionStatus::ModelApproved,
+            'reviewed_at' => now(),
+            'review_checks' => ['shape', 'sole', 'colours', 'clean'],
+        ]);
+    }
+
+    /**
      * A submission whose finished shoe reached the site but is not approved yet.
      */
     public function readyForReview(): static

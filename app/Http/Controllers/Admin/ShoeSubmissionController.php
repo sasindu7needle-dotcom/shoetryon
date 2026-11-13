@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\N8n\ShoeSubmissionCallbackController;
+use App\Http\Requests\Admin\ReviewShoeSubmissionRequest;
 use App\Http\Requests\Admin\StoreShoeSubmissionRequest;
 use App\Models\Shoe;
 use App\Models\ShoeSubmission;
@@ -47,13 +48,18 @@ class ShoeSubmissionController extends Controller
     }
 
     /**
-     * A sent shoe: its photo, its 3D model once n8n has sent it back, and
-     * the form for its DeepAR effect.
+     * A sent shoe: its photo, its 3D model once n8n has sent it back, the
+     * model review, and the form for its DeepAR effect once approved.
      */
     public function show(ShoeSubmission $submission): View
     {
+        $disk = Storage::disk('shoe_assets');
+
         return view('admin.shoe-submissions.show', [
-            'submission' => $submission->load('user'),
+            'submission' => $submission->load('user', 'reviewer'),
+            'hasPhoto' => $submission->photo_path !== null && $disk->exists($submission->photo_path),
+            'hasModel' => $submission->glb_path !== null && $disk->exists($submission->glb_path),
+            'reviewChecks' => ReviewShoeSubmissionRequest::CHECKS,
             'libraryShoe' => Shoe::query()->where('slug', $submission->slug)->first(),
         ]);
     }
