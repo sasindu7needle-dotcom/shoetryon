@@ -18,7 +18,7 @@
 <x-admin-layout title="Add new shoe">
     <x-slot:header>
         <h1 class="rise text-3xl font-bold sm:text-4xl">Add new shoe</h1>
-        <p class="rise mt-2 max-w-2xl text-white/85" style="animation-delay:.1s">Upload a photo of the shoe. n8n has Tripo turn it into a 3D model and sends it back here, usually in 1 to 3 minutes. You check it, add its DeepAR effect, and the shoe joins the library hidden until you approve it.</p>
+        <p class="rise mt-2 max-w-2xl text-white/85" style="animation-delay:.1s">Upload a photo of the shoe. n8n has Tripo turn it into a 3D model and sends it back here, usually in 1 to 3 minutes. You preview it on your feet and approve it, and it joins the library hidden until it passes the live try-on.</p>
     </x-slot:header>
 
     @unless ($isWorkflowConfigured)
@@ -127,9 +127,8 @@
             <ol class="flex flex-col gap-2.5 text-sm text-slate-600">
                 @foreach ([
                     'n8n has Tripo make a 3D model (GLB) from the photos. It shows up in the list below, usually in 1 to 3 minutes.',
-                    'Open it, turn the model around and download the GLB.',
-                    'Build its .deepar effect in DeepAR Studio and upload it. The shoe joins the library, hidden.',
-                    'Test it on your phone. Re-optimize with Claude until it sits right, then make it visible.',
+                    'Open it and preview it on your feet with your phone. Line it up, then approve it; it joins the library, hidden. No DeepAR Studio needed.',
+                    'Try it on live. Re-optimize with Claude until it sits right, then publish it.',
                 ] as $step)
                     <li class="flex gap-3"><span class="grid size-5 shrink-0 place-items-center rounded-full bg-brand-500/10 text-xs font-bold text-brand-900">{{ $loop->iteration }}</span>{{ $step }}</li>
                 @endforeach

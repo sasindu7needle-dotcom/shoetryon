@@ -72,13 +72,40 @@
             </section>
 
             @if ($status === \App\ShoeSubmissionStatus::ModelReady)
-                <section class="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+                <section id="review" class="flex scroll-mt-6 flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
                     <div>
                         <h2 class="text-xl font-bold">Review the 3D model</h2>
-                        <p class="mt-1 text-sm text-slate-500">Step 1 of 3. Turn the model around and compare it with the photo. Approve it only if every check passes; otherwise reject it and say what is wrong.</p>
+                        <p class="mt-1 text-sm text-slate-500">Step 1 of 2. First put the shoe on your feet with your phone camera, then compare it with the photo. Approving adds it to the library, hidden, worn as this 3D model; no DeepAR Studio needed. If a check fails, reject it and say what is wrong.</p>
                     </div>
 
-                    @if (! $hasModel)
+                    @if ($hasModel)
+                        @php
+                            $feetPreviewUrl = route('admin.shoe-submissions.preview', $submission);
+                        @endphp
+                        <div class="flex flex-col gap-3 rounded-xl border border-brand-500/30 bg-brand-500/5 p-4">
+                            <div>
+                                <h3 class="font-semibold">Preview it on your feet</h3>
+                                <p class="mt-1 text-sm text-slate-600">Opens the phone camera and puts this 3D model on your tracked feet. No DeepAR Studio needed. Point the back camera at your feet from 1–2 m away; use the buttons on screen to line it up if it is off. How you line it up is saved as the shoe's starting fit.</p>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-3">
+                                <a href="{{ $feetPreviewUrl }}" class="btn-flame">Preview on my feet</a>
+                                <button type="button" data-copy-link="{{ $feetPreviewUrl }}" class="inline-flex h-11 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium transition hover:bg-slate-100">Copy link for your phone</button>
+                            </div>
+                            <p class="text-xs text-slate-500">On the phone, sign in to the admin first. The camera needs the https:// address.</p>
+                        </div>
+                        <script>
+                            document.querySelectorAll('[data-copy-link]').forEach((button) => {
+                                button.addEventListener('click', async () => {
+                                    try {
+                                        await navigator.clipboard.writeText(button.dataset.copyLink);
+                                        button.textContent = 'Link copied';
+                                    } catch {
+                                        window.prompt('Copy this link', button.dataset.copyLink);
+                                    }
+                                });
+                            });
+                        </script>
+                    @else
                         <p class="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">The model can't be checked because its file is missing, so it can only be rejected.</p>
                     @endif
 
@@ -107,7 +134,7 @@
 
                         <div class="flex flex-wrap justify-end gap-3">
                             <button type="submit" name="decision" value="reject" class="inline-flex h-11 items-center rounded-lg border border-rose-300 px-5 text-sm font-medium text-rose-700 transition hover:bg-rose-50">Reject model</button>
-                            <button type="submit" name="decision" value="approve" @disabled(! $hasModel) class="btn-flame disabled:cursor-not-allowed disabled:opacity-50">Approve model</button>
+                            <button type="submit" name="decision" value="approve" @disabled(! $hasModel) class="btn-flame disabled:cursor-not-allowed disabled:opacity-50">Approve and add to library</button>
                         </div>
                     </form>
                 </section>
@@ -115,7 +142,7 @@
                 <section class="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
                     <div>
                         <h2 class="text-xl font-bold">Add to the shoe library</h2>
-                        <p class="mt-1 text-sm text-slate-500">Step 2 of 3. The try-on needs a DeepAR effect. Download the GLB, import it into DeepAR Studio's shoe try-on template, export the <code>.deepar</code> file and upload it here. The shoe joins the library hidden; in step 3 you try it on live before it goes on the site.</p>
+                        <p class="mt-1 text-sm text-slate-500">This shoe was approved before shoes could be worn as their 3D model, so it waits for a DeepAR effect. Download the GLB, import it into DeepAR Studio's shoe try-on template, export the <code>.deepar</code> file and upload it here. The shoe joins the library hidden; then you try it on live before it goes on the site.</p>
                     </div>
 
                     <form method="POST" action="{{ route('admin.shoe-submissions.library.store', $submission) }}" enctype="multipart/form-data" class="flex flex-col gap-4">
@@ -145,7 +172,7 @@
                 <section aria-labelledby="tryon-review-title" class="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
                     <div>
                         <h2 id="tryon-review-title" class="text-xl font-bold">Live try-on review</h2>
-                        <p class="mt-1 text-sm text-slate-500">Step 3 of 3. Wear the shoe in the live try-on, ideally on a phone pointed at your feet. If it sits right, publish it. If not, say what is wrong and Claude works out a new fit; then try it on again.</p>
+                        <p class="mt-1 text-sm text-slate-500">Step 2 of 2. Wear the shoe in the live try-on, as shoppers will see it, ideally on a phone pointed at your feet. If it sits right, publish it. If not, say what is wrong and Claude works out a new fit; then try it on again.</p>
                     </div>
 
                     <div class="flex flex-col gap-3 rounded-xl bg-slate-50 p-4">

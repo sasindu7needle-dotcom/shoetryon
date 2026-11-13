@@ -24,7 +24,7 @@ class ShoeSubmissionCallbackController extends Controller
 
     /**
      * Stores Tripo's GLB as public/models/generated/<id>.glb and marks the
-     * shoe as ready for the admin to check and give its AR effect.
+     * shoe as ready for the admin to preview on their feet and review.
      */
     public function storeModel(StoreShoeModelRequest $request, string $slug): JsonResponse
     {
@@ -36,7 +36,7 @@ class ShoeSubmissionCallbackController extends Controller
             'glb_path' => $glbPath,
             'tripo_task_id' => $request->validated('tripo_task_id'),
             'status' => ShoeSubmissionStatus::ModelReady,
-            'message' => 'The 3D model is ready. Check it, then add its DeepAR effect.',
+            'message' => 'The 3D model is ready. Preview it on your feet, then approve or reject it.',
         ]);
 
         return response()->json(['status' => $submission->status->value]);

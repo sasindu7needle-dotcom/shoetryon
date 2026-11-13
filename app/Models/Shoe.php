@@ -11,11 +11,20 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 
-#[Fillable(['slug', 'name', 'glb', 'thumb', 'effect', 'fit', 'position', 'is_visible'])]
+#[Fillable(['slug', 'name', 'glb', 'thumb', 'effect', 'fit', 'leg_mask', 'position', 'is_visible'])]
 class Shoe extends Model
 {
     /** @use HasFactory<ShoeFactory> */
     use HasFactory;
+
+    /**
+     * Where a shoe worn as its GLB starts on the foot: its longest side one
+     * foot long, centred on the tracked foot. Rotation is in degrees and
+     * position in DeepAR foot units (a foot is about 24 long).
+     *
+     * @var array{scale: float, rotation: list<float>, position: list<float>}
+     */
+    public const FEET_DEFAULT_FIT = ['scale' => 1.0, 'rotation' => [0.0, 0.0, 0.0], 'position' => [0.0, 0.0, 0.0]];
 
     /**
      * New shoes without a position go to the end of the library.
@@ -40,6 +49,7 @@ class Shoe extends Model
             'fit' => 'array',
             'position' => 'integer',
             'is_visible' => 'boolean',
+            'leg_mask' => 'boolean',
         ];
     }
 
@@ -76,11 +86,33 @@ class Shoe extends Model
     }
 
     /**
-     * Whether the DeepAR effect file exists, so the shoe can be worn in AR.
+     * Whether the shoe has a DeepAR effect built in DeepAR Studio. Shoes
+     * without one are worn as their GLB, drawn on the tracked feet.
+     */
+    public function usesEffect(): bool
+    {
+        return $this->effect !== null;
+    }
+
+    /**
+     * Whether the shoe can be worn in AR: through its DeepAR effect, or
+     * through its GLB on the tracked feet.
      */
     public function isArReady(): bool
     {
-        return file_exists(public_path($this->effect));
+        return file_exists(public_path($this->usesEffect() ? $this->effect : $this->glb));
+    }
+
+    /**
+     * A shoe effect the try-on can load only to run DeepAR's foot tracking,
+     * with its own shoe hidden, when it shows a shoe worn as its GLB. Null
+     * when no shoe has an effect on disk.
+     */
+    public static function trackerEffectUrl(): ?string
+    {
+        $shoe = static::query()->whereNotNull('effect')->ordered()->get()->first(fn (Shoe $shoe) => $shoe->isArReady());
+
+        return $shoe === null ? null : asset($shoe->effect);
     }
 
     /**

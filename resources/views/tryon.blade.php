@@ -31,6 +31,8 @@
                 {{-- On phones the camera view gives up some height so the shoe picker stays on screen. --}}
                 <div id="ar-stage" class="relative mx-auto aspect-[3/4] max-h-[calc(100svh-20.5rem)] min-h-56 w-full overflow-hidden lg:aspect-auto lg:h-[640px] lg:max-h-none">
                     {{-- DeepAR's canvas cancels touch drags, which stops the page scrolling on phones. Nothing in the view is touch-interactive, so catch touches above it. --}}
+                    {{-- Shoes made from photos have no DeepAR effect; their GLB is drawn here, on the feet DeepAR tracks. --}}
+                    <canvas id="ar-shoes" hidden class="pointer-events-none absolute inset-0 z-1 size-full"></canvas>
                     <div class="absolute inset-0 z-1"></div>
                     <div id="ar-status" role="status" aria-live="polite" class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-gradient-to-t from-brand-500 to-brand-900 px-6 text-center text-sm text-white">
                         <div class="scan" data-busy></div>
@@ -63,6 +65,8 @@
                                     data-id="{{ $shoe['id'] }}"
                                     data-name="{{ $shoe['name'] }}"
                                     data-effect="{{ $shoe['ready'] ? $shoe['effect'] : '' }}"
+                                    data-glb="{{ $shoe['ready'] && ! $shoe['effect'] ? $shoe['glb'] : '' }}"
+                                    data-leg-mask="{{ $shoe['legMask'] ? '1' : '0' }}"
                                     @disabled(! $shoe['ready'])
                                     class="shoe-card shoe-btn w-full touch-manipulation rounded-xl p-2 text-left disabled:cursor-not-allowed disabled:opacity-50">
                                 <img src="{{ $shoe['thumb'] }}" alt="{{ $shoe['name'] }}" class="aspect-square w-full rounded-lg bg-slate-100 object-cover">
@@ -81,7 +85,7 @@
     </main>
 
     <script>
-        window.TRYON = @json(['licenseKey' => $licenseKey, 'rootPath' => $rootPath, 'fits' => $fits]);
+        window.TRYON = {{ Js::from(['licenseKey' => $licenseKey, 'rootPath' => $rootPath, 'trackerEffect' => $trackerEffect, 'fits' => $fits]) }};
     </script>
 </body>
 </html>

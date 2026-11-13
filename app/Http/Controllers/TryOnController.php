@@ -44,6 +44,7 @@ class TryOnController extends Controller
             'shoes' => $shoes,
             'licenseKey' => config('services.deepar.license_key'),
             'rootPath' => asset('vendor/deepar').'/',
+            'trackerEffect' => Shoe::trackerEffectUrl(),
             'fits' => collect($shoes)->mapWithKeys(fn ($s) => [$s['id'] => $s['fit'] ?? null]),
         ]);
     }
@@ -51,7 +52,7 @@ class TryOnController extends Controller
     /**
      * The shoes shown on the site, in the order set in the admin shoe library.
      *
-     * @return list<array{id: string, name: string, glb: string, thumb: string, effect: string, fit: ?array<string, mixed>, ready: bool}>
+     * @return list<array{id: string, name: string, glb: string, thumb: string, effect: ?string, fit: ?array<string, mixed>, legMask: bool, ready: bool}>
      */
     private function shoes(): array
     {
@@ -59,7 +60,10 @@ class TryOnController extends Controller
     }
 
     /**
-     * @return array{id: string, name: string, glb: string, thumb: string, effect: string, fit: ?array<string, mixed>, ready: bool}
+     * A shoe with a DeepAR effect is worn through it; one without (new shoes
+     * from n8n) is worn as its GLB, drawn on the tracked feet.
+     *
+     * @return array{id: string, name: string, glb: string, thumb: string, effect: ?string, fit: ?array<string, mixed>, legMask: bool, ready: bool}
      */
     private function present(Shoe $shoe): array
     {
@@ -67,9 +71,10 @@ class TryOnController extends Controller
             'id' => $shoe->slug,
             'name' => $shoe->name,
             'thumb' => asset($shoe->thumb),
-            'glb' => asset($shoe->glb),
-            'effect' => $this->versionedAsset($shoe->effect),
+            'glb' => $this->versionedAsset($shoe->glb),
+            'effect' => $shoe->usesEffect() ? $this->versionedAsset($shoe->effect) : null,
             'fit' => $shoe->fit,
+            'legMask' => $shoe->leg_mask,
             'ready' => $shoe->isArReady(),
         ];
     }

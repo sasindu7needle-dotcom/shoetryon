@@ -127,6 +127,35 @@ class ShoeLibraryTest extends TestCase
             ->assertSee('name="use_studio_fit" value="1" checked', false);
     }
 
+    public function test_edit_page_for_a_shoe_worn_as_its_glb_offers_the_leg_mask_instead_of_the_studio_placement(): void
+    {
+        $shoe = Shoe::factory()->wornAsGlb()->create();
+
+        $this->actingAs($this->admin)->withoutVite()->get(route('admin.shoes.edit', $shoe))
+            ->assertOk()
+            ->assertSee('Leg mask')
+            ->assertSee('None, worn as its 3D model on the tracked feet')
+            ->assertDontSee('Use the placement exported from DeepAR Studio');
+    }
+
+    public function test_admin_can_turn_on_the_leg_mask_of_a_shoe_worn_as_its_glb(): void
+    {
+        $shoe = Shoe::factory()->wornAsGlb()->create();
+
+        $this->actingAs($this->admin)->put(route('admin.shoes.update', $shoe), [
+            'name' => $shoe->name,
+            'is_visible' => '1',
+            'position' => $shoe->position,
+            'use_studio_fit' => '0',
+            'leg_mask' => '1',
+            'fit' => ['scale' => '1.05', 'rotation' => [0, 90, 0], 'position' => [0, -1, 0.5], 'stretch' => [1, 1, 1]],
+        ])->assertSessionHasNoErrors();
+
+        $shoe->refresh();
+        $this->assertTrue($shoe->leg_mask);
+        $this->assertEquals(['scale' => 1.05, 'rotation' => [0.0, 90.0, 0.0], 'position' => [0.0, -1.0, 0.5]], $shoe->fit);
+    }
+
     public function test_update_rejects_invalid_values(): void
     {
         $shoe = Shoe::factory()->create();

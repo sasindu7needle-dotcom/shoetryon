@@ -20,6 +20,7 @@ class ReviewShoeSubmissionRequest extends FormRequest
         'sole' => 'The sole is complete, flat and in one piece',
         'colours' => 'The colours, materials and logos match the photo',
         'clean' => 'No holes, floating bits or extra geometry',
+        'on_feet' => 'On my feet in the preview it looks like a real shoe at the right size',
     ];
 
     /**

@@ -82,7 +82,7 @@ class ShoeSubmissionReviewTest extends TestCase
             ->assertSee('data-model-preview="'.route('admin.shoe-submissions.files.show', [$submission, 'model']).'"', false)
             ->assertSee('Download GLB')
             ->assertSee('Review the 3D model')
-            ->assertSee('Approve model')
+            ->assertSee('Approve and add to library')
             ->assertDontSee('Add to library');
     }
 
@@ -104,7 +104,7 @@ class ShoeSubmissionReviewTest extends TestCase
         $this->actingAs($this->admin)->withoutVite()->get(route('admin.shoe-submissions.show', $submission))
             ->assertOk()
             ->assertSee('Tripo is making the 3D model')
-            ->assertDontSee('Approve model')
+            ->assertDontSee('Approve and add to library')
             ->assertDontSee('Add to library');
     }
 
@@ -150,7 +150,7 @@ class ShoeSubmissionReviewTest extends TestCase
         ])->assertRedirect(route('admin.shoe-submissions.show', $submission));
 
         $submission->refresh();
-        $this->assertSame(ShoeSubmissionStatus::ModelApproved, $submission->status);
+        $this->assertSame(ShoeSubmissionStatus::ReadyForReview, $submission->status);
         $this->assertTrue($submission->reviewer->is($this->admin));
         $this->assertNotNull($submission->reviewed_at);
         $this->assertSame(array_keys(ReviewShoeSubmissionRequest::CHECKS), $submission->review_checks);
@@ -187,7 +187,7 @@ class ShoeSubmissionReviewTest extends TestCase
         $this->actingAs($this->admin)->withoutVite()->get(route('admin.shoe-submissions.show', $submission))
             ->assertSee('The sole is hollow.')
             ->assertSee('Send it again')
-            ->assertDontSee('Approve model');
+            ->assertDontSee('Approve and add to library');
     }
 
     public function test_rejecting_needs_a_reason(): void
@@ -215,7 +215,7 @@ class ShoeSubmissionReviewTest extends TestCase
         $this->actingAs($this->admin)->withoutVite()->get(route('admin.shoe-submissions.show', $submission))
             ->assertOk()
             ->assertSee('Add to library')
-            ->assertDontSee('Approve model');
+            ->assertDontSee('Approve and add to library');
     }
 
     public function test_the_effect_adds_the_shoe_to_the_library_hidden(): void
@@ -326,6 +326,128 @@ class ShoeSubmissionReviewTest extends TestCase
             ->assertConflict();
     }
 
+    public function test_the_review_offers_a_preview_on_the_admins_feet(): void
+    {
+        $submission = $this->submissionWithFiles();
+
+        $this->actingAs($this->admin)->withoutVite()->get(route('admin.shoe-submissions.show', $submission))
+            ->assertOk()
+            ->assertSee('Preview on my feet')
+            ->assertSee(route('admin.shoe-submissions.preview', $submission), false);
+    }
+
+    public function test_the_feet_preview_loads_the_glb_without_a_deepar_effect(): void
+    {
+        config(['services.deepar.license_key' => 'test-license']);
+        $submission = $this->submissionWithFiles();
+
+        $this->actingAs($this->admin)->withoutVite()->get(route('admin.shoe-submissions.preview', $submission))
+            ->assertOk()
+            ->assertSee('on your feet')
+            ->assertViewHas('preview', fn (array $preview) => $preview['modelUrl'] === route('admin.shoe-submissions.files.show', [$submission, 'model'])
+                && $preview['fit'] === Shoe::FEET_DEFAULT_FIT
+                && $preview['saveUrl'] === route('admin.shoe-submissions.preview.update', $submission))
+            ->assertSee('Done, review it');
+    }
+
+    public function test_approving_adds_the_shoe_to_the_library_worn_as_its_glb(): void
+    {
+        $submission = $this->submissionWithFiles();
+        $previewFit = ['scale' => 1.1, 'rotation' => [0.0, 90.0, 0.0], 'position' => [0.0, -1.5, 2.0]];
+        $submission->update(['preview_fit' => ['fit' => $previewFit, 'leg_mask' => true]]);
+
+        $this->actingAs($this->admin)->post(route('admin.shoe-submissions.review.store', $submission), [
+            'decision' => 'approve',
+            'checks' => array_keys(ReviewShoeSubmissionRequest::CHECKS),
+        ])->assertRedirect(route('admin.shoe-submissions.show', $submission));
+
+        $shoe = Shoe::query()->where('slug', 'leather-loafer')->sole();
+        $this->assertSame('Leather Loafer', $shoe->name);
+        $this->assertSame('models/generated/leather-loafer.glb', $shoe->glb);
+        $this->assertSame('models/generated/leather-loafer.jpg', $shoe->thumb);
+        $this->assertNull($shoe->effect);
+        $this->assertFalse($shoe->usesEffect());
+        $this->assertEquals($previewFit, $shoe->fit);
+        $this->assertTrue($shoe->leg_mask);
+        $this->assertFalse($shoe->is_visible);
+
+        $this->actingAs($this->admin)->withoutVite()->get(route('admin.shoe-submissions.show', $submission))
+            ->assertSee('Live try-on review')
+            ->assertSee(route('tryon', ['preview' => 'leather-loafer']), false);
+    }
+
+    public function test_approving_without_a_preview_fit_starts_from_the_default_fit(): void
+    {
+        $submission = $this->submissionWithFiles();
+
+        $this->actingAs($this->admin)->post(route('admin.shoe-submissions.review.store', $submission), [
+            'decision' => 'approve',
+            'checks' => array_keys(ReviewShoeSubmissionRequest::CHECKS),
+        ]);
+
+        $shoe = Shoe::query()->where('slug', 'leather-loafer')->sole();
+        $this->assertEquals(Shoe::FEET_DEFAULT_FIT, $shoe->fit);
+        $this->assertFalse($shoe->leg_mask);
+    }
+
+    public function test_approving_a_shoe_whose_id_is_already_in_the_library_is_refused(): void
+    {
+        $submission = $this->submissionWithFiles();
+        Shoe::factory()->create(['slug' => 'leather-loafer']);
+
+        $this->actingAs($this->admin)->post(route('admin.shoe-submissions.review.store', $submission), [
+            'decision' => 'approve',
+            'checks' => array_keys(ReviewShoeSubmissionRequest::CHECKS),
+        ])->assertSessionHas('error');
+
+        $this->assertSame(ShoeSubmissionStatus::ModelReady, $submission->refresh()->status);
+        $this->assertSame(1, Shoe::query()->count());
+    }
+
+    public function test_the_feet_preview_saves_the_fit_the_admin_sets(): void
+    {
+        $submission = $this->submissionWithFiles();
+
+        $this->actingAs($this->admin)->putJson(route('admin.shoe-submissions.preview.update', $submission), [
+            'fit' => ['scale' => 0.95, 'rotation' => [0, 90, 180], 'position' => [0, 1.5, -0.5]],
+            'leg_mask' => true,
+        ])->assertOk();
+
+        $this->assertEquals([
+            'fit' => ['scale' => 0.95, 'rotation' => [0.0, 90.0, 180.0], 'position' => [0.0, 1.5, -0.5]],
+            'leg_mask' => true,
+        ], $submission->refresh()->preview_fit);
+    }
+
+    public function test_the_feet_preview_rejects_a_broken_fit(): void
+    {
+        $submission = $this->submissionWithFiles();
+
+        $this->actingAs($this->admin)->putJson(route('admin.shoe-submissions.preview.update', $submission), [
+            'fit' => ['scale' => 0, 'rotation' => [0, 90], 'position' => [0, 0, 500]],
+            'leg_mask' => true,
+        ])->assertUnprocessable()->assertJsonValidationErrors(['fit.scale', 'fit.rotation', 'fit.position.2']);
+
+        $this->assertNull($submission->refresh()->preview_fit);
+    }
+
+    public function test_the_feet_preview_fit_cannot_change_after_the_review(): void
+    {
+        $submission = $this->submissionWithFiles('modelApproved');
+
+        $this->actingAs($this->admin)->putJson(route('admin.shoe-submissions.preview.update', $submission), [
+            'fit' => ['scale' => 1, 'rotation' => [0, 0, 0], 'position' => [0, 0, 0]],
+            'leg_mask' => false,
+        ])->assertConflict();
+    }
+
+    public function test_the_feet_preview_needs_the_3d_model_file(): void
+    {
+        $submission = ShoeSubmission::factory()->modelReady()->create();
+
+        $this->actingAs($this->admin)->get(route('admin.shoe-submissions.preview', $submission))->assertNotFound();
+    }
+
     public function test_users_who_are_not_admins_cannot_review_shoes(): void
     {
         $submission = $this->submissionWithFiles();
@@ -333,6 +455,8 @@ class ShoeSubmissionReviewTest extends TestCase
 
         $this->actingAs($user)->get(route('admin.shoe-submissions.show', $submission))->assertForbidden();
         $this->actingAs($user)->get(route('admin.shoe-submissions.files.show', [$submission, 'model']))->assertForbidden();
+        $this->actingAs($user)->get(route('admin.shoe-submissions.preview', $submission))->assertForbidden();
+        $this->actingAs($user)->putJson(route('admin.shoe-submissions.preview.update', $submission), [])->assertForbidden();
         $this->actingAs($user)->post(route('admin.shoe-submissions.review.store', $submission), ['decision' => 'reject', 'note' => 'No.'])->assertForbidden();
         $this->actingAs($user)->post(route('admin.shoe-submissions.library.store', $submission), ['effect' => $this->effect()])->assertForbidden();
         $this->actingAs($user)->post(route('admin.shoe-submissions.publish.store', $submission))->assertForbidden();

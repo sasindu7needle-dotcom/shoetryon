@@ -41,6 +41,19 @@ class ShoeFactory extends Factory
     }
 
     /**
+     * A shoe made from photos: no DeepAR effect, worn as its GLB on the
+     * tracked feet. Its GLB is one that ships with the app.
+     */
+    public function wornAsGlb(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'glb' => 'models/samples/street-runner.glb',
+            'effect' => null,
+            'fit' => Shoe::FEET_DEFAULT_FIT,
+        ]);
+    }
+
+    /**
      * A shoe whose DeepAR effect file ships with the app.
      */
     public function arReady(): static

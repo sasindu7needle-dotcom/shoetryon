@@ -32,6 +32,30 @@ class TryOnPageTest extends TestCase
         $response->assertSee('data-effect="'.asset($shoe->effect).'?v='.filemtime(public_path($shoe->effect)).'"', false);
     }
 
+    public function test_shoes_without_an_effect_are_worn_as_their_glb(): void
+    {
+        $tracker = Shoe::factory()->arReady()->create(['position' => 1]);
+        $shoe = Shoe::factory()->wornAsGlb()->create(['name' => 'Photo Pump', 'leg_mask' => true, 'position' => 2]);
+
+        $response = $this->withoutVite()->get(route('tryon'));
+
+        $response->assertOk();
+        $response->assertSee('data-glb="'.asset($shoe->glb).'?v='.filemtime(public_path($shoe->glb)).'"', false);
+        $response->assertSee('data-leg-mask="1"', false);
+        $response->assertViewHas('trackerEffect', asset($tracker->effect));
+        $response->assertViewHas('shoes', fn (array $shoes) => collect($shoes)->firstWhere('id', $shoe->slug)['ready'] === true
+            && collect($shoes)->firstWhere('id', $shoe->slug)['effect'] === null);
+    }
+
+    public function test_hidden_shoes_made_from_photos_can_be_previewed(): void
+    {
+        $shoe = Shoe::factory()->wornAsGlb()->hidden()->create(['name' => 'Photo Pump']);
+
+        $this->withoutVite()->get(route('tryon', ['preview' => $shoe->slug]))
+            ->assertOk()
+            ->assertSee('Photo Pump (preview)');
+    }
+
     public function test_fits_are_passed_to_the_page(): void
     {
         $shoe = Shoe::factory()->arReady()->create();

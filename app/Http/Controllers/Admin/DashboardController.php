@@ -35,7 +35,7 @@ class DashboardController extends Controller
                 'total' => $total,
                 'visible' => $visible,
                 'hidden' => $total - $visible,
-                'arReady' => Shoe::query()->pluck('effect')->filter(fn (string $effect) => file_exists(public_path($effect)))->count(),
+                'arReady' => Shoe::query()->get(['glb', 'effect'])->filter(fn (Shoe $shoe) => $shoe->isArReady())->count(),
             ],
         ]);
     }

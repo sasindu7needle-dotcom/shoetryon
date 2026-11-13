@@ -14,6 +14,19 @@ use Illuminate\Support\Facades\Log;
 
 class ShoeFitRoundController extends Controller
 {
+    /** The shoe is worn through a DeepAR effect built in DeepAR Studio. */
+    public const RENDERER_EFFECT = 'deepar_effect';
+
+    /** The shoe is worn as its GLB, drawn by three.js on the feet DeepAR tracks. */
+    public const RENDERER_GLB = 'glb_on_feet';
+
+    /**
+     * What the fit values mean for each renderer, sent to Claude with the shoe.
+     */
+    public const EFFECT_FIT_GUIDE = 'The fit moves the shoe model inside its DeepAR effect. scale multiplies the GLB, which is in metres (about 90 makes a shoe foot-sized); rotation is Euler degrees [x, y, z]; position is in DeepAR foot units (a foot is about 24 long) along [width, height, length]; stretch is an optional [width, height, length] multiplier. Compare with the reference fits of shoes that already sit right.';
+
+    public const GLB_FIT_GUIDE = 'The GLB is already centred on the tracked foot and sized so its longest side is one foot long, with that side along the foot\'s length. scale multiplies that size (1 = one foot long; 1.05 is 5% bigger); rotation is Euler degrees [x, y, z] applied to the shoe on the foot (y turns it around, 180 on z flips it upside down); position is in DeepAR foot units (a foot is about 24 long) as [sideways, up, towards the toes]; stretch is an optional [width, height, length] multiplier. Change values in small steps, e.g. 0.5 to 2 units of position.';
+
     /**
      * Sends the admin's comment (and phone screenshot) on how the shoe sits
      * to the n8n re-optimize webhook. Claude answers with a new fit, which
@@ -51,16 +64,21 @@ class ShoeFitRoundController extends Controller
     private function sendToWorkflow(StoreShoeFitRoundRequest $request, Shoe $shoe, ShoeFitRound $round): ?string
     {
         $screenshot = $request->file('screenshot');
+        $usesEffect = $shoe->usesEffect();
 
         $payload = [
             'round_id' => $round->id,
             'comment' => $round->comment,
+            'renderer' => $usesEffect ? self::RENDERER_EFFECT : self::RENDERER_GLB,
+            'fit_guide' => $usesEffect ? self::EFFECT_FIT_GUIDE : self::GLB_FIT_GUIDE,
             'shoe' => [
                 'id' => $shoe->slug,
                 'name' => $shoe->name,
-                'fit' => $shoe->fit,
+                'fit' => $shoe->fit ?? ($usesEffect ? null : Shoe::FEET_DEFAULT_FIT),
             ],
-            'reference_fits' => collect(config('shoes'))->mapWithKeys(fn (array $entry) => [$entry['id'] => $entry['fit']]),
+            'reference_fits' => $usesEffect
+                ? collect(config('shoes'))->mapWithKeys(fn (array $entry) => [$entry['id'] => $entry['fit']])
+                : (object) [],
             'screenshot' => $screenshot === null ? null : [
                 'media_type' => $screenshot->getMimeType(),
                 'data' => base64_encode($screenshot->get()),

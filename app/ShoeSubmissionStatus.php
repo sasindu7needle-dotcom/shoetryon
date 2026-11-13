@@ -13,16 +13,16 @@ enum ShoeSubmissionStatus: string
     /** n8n could not be reached, refused the photos, or Tripo could not make the model. */
     case Failed = 'failed';
 
-    /** n8n sent back Tripo's 3D model; it waits for the admin to check it against the photo. */
+    /** n8n sent back Tripo's 3D model; it waits for the admin to preview it on their feet and approve it. */
     case ModelReady = 'model_ready';
 
-    /** The admin approved the 3D model; it waits for its AR effect before it joins the library. */
+    /** Approved before shoes could be worn as their GLB; it waits for a DeepAR effect before it joins the library. */
     case ModelApproved = 'model_approved';
 
     /** The admin rejected the 3D model; the shoe has to be sent again. */
     case Rejected = 'rejected';
 
-    /** The finished shoe reached the site, hidden until it is approved after a phone test. */
+    /** The shoe is in the library, hidden until it passes the admin's live try-on. */
     case ReadyForReview = 'ready_for_review';
 
     /** The shoe was approved and is visible on the site. */
@@ -63,7 +63,7 @@ enum ShoeSubmissionStatus: string
     public function nextStep(): ?string
     {
         return match ($this) {
-            self::ModelReady => 'Check the 3D model against the photo, then approve or reject it.',
+            self::ModelReady => 'Preview it on your feet, then approve or reject the 3D model.',
             self::ModelApproved => 'Build its .deepar effect in DeepAR Studio and upload it.',
             self::ReadyForReview => 'Try it on live, then publish it or tell Claude what to fix.',
             default => null,

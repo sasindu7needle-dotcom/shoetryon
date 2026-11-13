@@ -1,7 +1,14 @@
 {
-  "_RoomEnvironment-piAzC7oM.js": {
-    "file": "assets/RoomEnvironment-piAzC7oM.js",
+  "_RoomEnvironment-Bw6APAQ4.js": {
+    "file": "assets/RoomEnvironment-Bw6APAQ4.js",
     "name": "RoomEnvironment"
+  },
+  "_feet-renderer-Cqbv3DUa.js": {
+    "file": "assets/feet-renderer-Cqbv3DUa.js",
+    "name": "feet-renderer",
+    "imports": [
+      "_RoomEnvironment-Bw6APAQ4.js"
+    ]
   },
   "_figtree-400-normal-BD4aNku5.woff": {
     "file": "assets/figtree-400-normal-BD4aNku5.woff",
@@ -48,7 +55,7 @@
     "src": "_fonts-CtIHHeqQ.css"
   },
   "resources/css/app.css": {
-    "file": "assets/app-_YYnpX5H.css",
+    "file": "assets/app-BqLYJieI.css",
     "name": "app",
     "names": [
       "app.css"
@@ -62,28 +69,40 @@
     "src": "resources/js/app.js",
     "isEntry": true
   },
+  "resources/js/feet-preview.js": {
+    "file": "assets/feet-preview-NhuCCNJr.js",
+    "name": "feet-preview",
+    "src": "resources/js/feet-preview.js",
+    "isEntry": true,
+    "imports": [
+      "_feet-renderer-Cqbv3DUa.js"
+    ]
+  },
   "resources/js/landing.js": {
-    "file": "assets/landing-BeAXY7HX.js",
+    "file": "assets/landing-BTN7KB6f.js",
     "name": "landing",
     "src": "resources/js/landing.js",
     "isEntry": true,
     "imports": [
-      "_RoomEnvironment-piAzC7oM.js"
+      "_RoomEnvironment-Bw6APAQ4.js"
     ]
   },
   "resources/js/model-preview.js": {
-    "file": "assets/model-preview-4CsJbBPH.js",
+    "file": "assets/model-preview-Bvf37c-w.js",
     "name": "model-preview",
     "src": "resources/js/model-preview.js",
     "isEntry": true,
     "imports": [
-      "_RoomEnvironment-piAzC7oM.js"
+      "_RoomEnvironment-Bw6APAQ4.js"
     ]
   },
   "resources/js/tryon.js": {
-    "file": "assets/tryon-DyKni4dB.js",
+    "file": "assets/tryon-SR568vpU.js",
     "name": "tryon",
     "src": "resources/js/tryon.js",
-    "isEntry": true
+    "isEntry": true,
+    "imports": [
+      "_feet-renderer-Cqbv3DUa.js"
+    ]
   }
 }

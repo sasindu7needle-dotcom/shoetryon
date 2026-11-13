@@ -25,6 +25,7 @@ class UpdateShoeRequest extends FormRequest
             'position' => ['required', 'integer', 'min:1', 'max:'.max(1, Shoe::query()->count())],
             'return_url' => ['nullable', 'string', 'max:2000'],
             'use_studio_fit' => ['boolean'],
+            'leg_mask' => ['boolean'],
             'fit' => [$exceptStudioFit, 'array'],
             'fit.scale' => [$exceptStudioFit, 'required', 'numeric', 'gt:0', 'max:1000'],
             'fit.rotation' => [$exceptStudioFit, 'required', 'array:0,1,2', 'size:3'],
@@ -42,7 +43,9 @@ class UpdateShoeRequest extends FormRequest
      * "use the placement exported from DeepAR Studio" ticked the fit is
      * empty, so the try-on leaves the effect's own transform alone.
      *
-     * @return array{name: string, is_visible: bool, fit: array{scale: float, rotation: list<float>, position: list<float>, stretch?: list<float>}|null}
+     * The leg mask only applies to shoes worn as their GLB.
+     *
+     * @return array{name: string, is_visible: bool, leg_mask: bool, fit: array{scale: float, rotation: list<float>, position: list<float>, stretch?: list<float>}|null}
      */
     public function shoeAttributes(): array
     {
@@ -52,6 +55,7 @@ class UpdateShoeRequest extends FormRequest
             return [
                 'name' => $this->validated('name'),
                 'is_visible' => $this->boolean('is_visible'),
+                'leg_mask' => $this->boolean('leg_mask'),
                 'fit' => null,
             ];
         }
@@ -61,6 +65,7 @@ class UpdateShoeRequest extends FormRequest
         $attributes = [
             'name' => $this->validated('name'),
             'is_visible' => $this->boolean('is_visible'),
+            'leg_mask' => $this->boolean('leg_mask'),
             'fit' => [
                 'scale' => (float) $fit['scale'],
                 'rotation' => $toFloats($fit['rotation']),

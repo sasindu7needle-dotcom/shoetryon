@@ -56,9 +56,24 @@ class ReoptimizeShoeFitTest extends TestCase
             && $request['shoe']['fit'] == $shoe->fit
             && $request['screenshot']['media_type'] === 'image/png'
             && $request['screenshot']['data'] !== ''
+            && $request['renderer'] === 'deepar_effect'
             && isset($request['reference_fits']['street-runner'])
             && $request['result_url'] === route('n8n.fit-rounds.result', $round)
             && $request['failure_url'] === route('n8n.fit-rounds.failure', $round));
+    }
+
+    public function test_a_shoe_worn_as_its_glb_is_sent_with_its_own_fit_guide(): void
+    {
+        Http::fake([self::WEBHOOK_URL => Http::response('Accepted')]);
+        $shoe = Shoe::factory()->wornAsGlb()->create(['fit' => null]);
+
+        $this->actingAs($this->admin)->post(route('admin.shoes.fit-rounds.store', $shoe), ['comment' => 'The shoe floats above the floor.'])
+            ->assertSessionHasNoErrors();
+
+        Http::assertSent(fn (Request $request) => $request['renderer'] === 'glb_on_feet'
+            && str_contains($request['fit_guide'], '1 = one foot long')
+            && $request['shoe']['fit'] == Shoe::FEET_DEFAULT_FIT
+            && (array) $request['reference_fits'] === []);
     }
 
     public function test_the_screenshot_is_optional(): void

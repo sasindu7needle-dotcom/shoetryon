@@ -1,8 +1,9 @@
 @php
-    $fit = $shoe->fit ?? [];
+    $usesEffect = $shoe->usesEffect();
+    $fit = $shoe->fit ?? ($usesEffect ? [] : \App\Models\Shoe::FEET_DEFAULT_FIT);
     $vectors = [
         'rotation' => ['Rotation', 'Euler degrees', $fit['rotation'] ?? [0, 0, 0]],
-        'position' => ['Position', 'DeepAR foot units', $fit['position'] ?? [0, 0, 0]],
+        'position' => ['Position', $usesEffect ? 'DeepAR foot units' : 'Foot units (a foot is about 24): sideways, up, towards the toes', $fit['position'] ?? [0, 0, 0]],
         'stretch' => ['Stretch', 'Width, height, length multipliers', $fit['stretch'] ?? [1, 1, 1]],
     ];
     $input = 'h-11 w-full rounded-lg border border-slate-300 px-3 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30';
@@ -26,7 +27,7 @@
         <aside class="flex items-start gap-4 self-start rounded-2xl border border-slate-200 bg-white p-4 lg:flex-col">
             <img src="{{ asset($shoe->thumb) }}" alt="{{ $shoe->name }}" class="aspect-square w-24 shrink-0 rounded-xl bg-slate-100 object-cover sm:w-32 lg:w-full">
             <dl class="flex min-w-0 flex-col gap-2 text-sm">
-                @foreach (['Slug' => $shoe->slug, '3D model' => $shoe->glb, 'AR effect' => $shoe->effect] as $label => $value)
+                @foreach (['Slug' => $shoe->slug, '3D model' => $shoe->glb, 'AR effect' => $usesEffect ? $shoe->effect : 'None, worn as its 3D model on the tracked feet'] as $label => $value)
                     <div>
                         <dt class="font-semibold">{{ $label }}</dt>
                         <dd class="break-all text-slate-500">{{ $value }}</dd>
@@ -75,17 +76,29 @@
                     <a href="{{ route('tryon', ['preview' => $shoe->slug]) }}" target="_blank" class="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-medium transition hover:bg-slate-100">Test on phone</a>
                 </div>
 
-                <label class="flex items-center gap-3">
+                @if ($usesEffect)
+                    <label class="flex items-center gap-3">
+                        <input type="hidden" name="use_studio_fit" value="0">
+                        <input type="checkbox" name="use_studio_fit" value="1" @checked(old('use_studio_fit', $shoe->fit === null)) class="size-5 rounded accent-brand-900">
+                        <span>
+                            <span class="block text-sm font-semibold">Use the placement exported from DeepAR Studio</span>
+                            <span class="block text-sm text-slate-500">Ignores the values below. Untick to place the shoe with them.</span>
+                        </span>
+                    </label>
+                @else
                     <input type="hidden" name="use_studio_fit" value="0">
-                    <input type="checkbox" name="use_studio_fit" value="1" @checked(old('use_studio_fit', $shoe->fit === null)) class="size-5 rounded accent-brand-900">
-                    <span>
-                        <span class="block text-sm font-semibold">Use the placement exported from DeepAR Studio</span>
-                        <span class="block text-sm text-slate-500">Ignores the values below. Untick to place the shoe with them.</span>
-                    </span>
-                </label>
+                    <label class="flex items-center gap-3">
+                        <input type="hidden" name="leg_mask" value="0">
+                        <input type="checkbox" name="leg_mask" value="1" @checked(old('leg_mask', $shoe->leg_mask)) class="size-5 rounded accent-brand-900">
+                        <span>
+                            <span class="block text-sm font-semibold">Leg mask</span>
+                            <span class="block text-sm text-slate-500">Hides the back of the shoe's collar behind the wearer's leg. Turn it off if it cuts into the shoe.</span>
+                        </span>
+                    </label>
+                @endif
 
                 <div class="flex flex-col gap-1.5 sm:max-w-48">
-                    <label for="fit-scale" class="text-sm font-semibold">Scale</label>
+                    <label for="fit-scale" class="text-sm font-semibold">Scale @unless ($usesEffect)<span class="font-normal text-slate-500">· 1 = one foot long</span>@endunless</label>
                     <input id="fit-scale" name="fit[scale]" type="number" step="any" value="{{ old('fit.scale', $fit['scale'] ?? 1) }}" required class="{{ $input }}">
                     @error('fit.scale')
                         <p class="text-sm text-rose-600">{{ $message }}</p>

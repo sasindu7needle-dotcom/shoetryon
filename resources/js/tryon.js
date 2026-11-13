@@ -1,6 +1,7 @@
 import * as deepar from 'deepar';
+import { FeetRenderer, startFootTrackingOnly } from './feet-renderer.js';
 
-const { licenseKey, rootPath, fits } = window.TRYON;
+const { licenseKey, rootPath, fits, trackerEffect } = window.TRYON;
 const stage = document.getElementById('ar-stage');
 const status = document.getElementById('ar-status');
 const statusText = status.querySelector('[data-status-text]');
@@ -8,6 +9,14 @@ const statusAction = status.querySelector('[data-status-action]');
 const busyIndicators = status.querySelectorAll('[data-busy]');
 const hint = document.getElementById('ar-hint');
 const buttons = [...document.querySelectorAll('.shoe-btn')];
+const canWear = (btn) => Boolean(btn.dataset.effect || btn.dataset.glb);
+
+// Shoes made from photos have no DeepAR effect; their GLB is drawn on the
+// tracked feet above DeepAR's camera view.
+const feetRenderer = new FeetRenderer(stage, document.getElementById('ar-shoes'));
+// What DeepAR has loaded: a shoe's effect URL, or 'tracker' while a GLB shoe
+// is worn and DeepAR only tracks the feet.
+let deeparEffect = null;
 
 const ua = navigator.userAgent;
 const isIOS = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
@@ -343,8 +352,18 @@ async function selectShoe(id) {
         const btn = buttons.find((b) => b.dataset.id === shoeId);
         setHint(`Loading ${btn.dataset.name}…`);
         try {
-            await ar.switchEffect(btn.dataset.effect, { trackingInit: { foot: true } });
-            applyFit(ar, fits[shoeId]);
+            if (btn.dataset.effect) {
+                feetRenderer.hide();
+                await ar.switchEffect(btn.dataset.effect, { trackingInit: { foot: true } });
+                deeparEffect = btn.dataset.effect;
+                applyFit(ar, fits[shoeId]);
+            } else {
+                if (deeparEffect !== 'tracker') {
+                    await startFootTrackingOnly(ar, trackerEffect);
+                    deeparEffect = 'tracker';
+                }
+                await feetRenderer.show(btn.dataset.glb, fits[shoeId], btn.dataset.legMask === '1');
+            }
             loadedShoe = shoeId;
         } catch (e) {
             consoleError('Could not load shoe:', e);
@@ -400,11 +419,13 @@ async function main() {
         fail('The 3D view was interrupted by the phone.', reload);
     });
 
-    ar.callbacks.onFootTrackingInitialized = () => {
+    ar.callbacks.onFootTrackingInitialized = (fovY) => {
+        feetRenderer.setFieldOfView(fovY);
         trackingReady = true;
         if (!loadingShoe) showTrackingHint();
     };
     ar.callbacks.onFeetTracked = (left, right) => {
+        feetRenderer.update(left, right);
         const visible = left.detected || right.detected;
         if (visible === feetVisible) return;
         feetVisible = visible;
@@ -414,14 +435,14 @@ async function main() {
 
     buttons.forEach((btn) => {
         btn.addEventListener('click', () => {
-            if (btn.dataset.effect) selectShoe(btn.dataset.id);
+            if (canWear(btn)) selectShoe(btn.dataset.id);
         });
     });
 
     // ?preview=<id> is the phone-test link n8n emails for a shoe that is still hidden.
     const params = new URLSearchParams(location.search);
     const wanted = params.get('preview') ?? params.get('shoe');
-    const ready = buttons.filter((b) => b.dataset.effect);
+    const ready = buttons.filter(canWear);
     const first = ready.find((b) => b.dataset.id === wanted) ?? ready[0];
     if (first) selectShoe(first.dataset.id);
 
