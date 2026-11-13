@@ -90,6 +90,32 @@ function loadShoe(shoe) {
     return cache.get(shoe.id);
 }
 
+// The thumbnail column scrolls when there are more shoes than fit; keep the
+// selected one in view without scrolling the page.
+function revealChip(chip) {
+    const list = chip?.closest('ul');
+    if (!list) return;
+    const behavior = reduceMotion ? 'auto' : 'smooth';
+    const listBox = list.getBoundingClientRect();
+    const chipBox = chip.getBoundingClientRect();
+
+    // A row on phones, a column on larger screens.
+    if (list.scrollWidth > list.clientWidth && (chipBox.left < listBox.left || chipBox.right > listBox.right)) {
+        list.scrollBy({ left: chipBox.left - listBox.left - (listBox.width - chipBox.width) / 2, behavior });
+    } else if (list.scrollHeight > list.clientHeight && (chipBox.top < listBox.top || chipBox.bottom > listBox.bottom)) {
+        list.scrollBy({ top: chipBox.top - listBox.top - (listBox.height - chipBox.height) / 2, behavior });
+    }
+}
+
+// Load the shoes either side of the one shown so arrow keys and the next tap
+// switch instantly, without downloading every model in a large collection.
+function warmNeighbours(index) {
+    [index - 1, index + 1].forEach((i) => {
+        const shoe = shoes[(i + shoes.length) % shoes.length];
+        loadShoe(shoe).catch(() => cache.delete(shoe.id));
+    });
+}
+
 let current = null;
 let leaving = null;
 let currentIndex = 0;
@@ -103,10 +129,14 @@ let lastX = 0;
 const easeOutBack = (t) => 1 + 2.7 * Math.pow(t - 1, 3) + 1.7 * Math.pow(t - 1, 2);
 
 async function show(index) {
+    // Every shoe can be hidden from the site in the admin shoe library.
+    if (!shoes.length) return;
     currentIndex = (index + shoes.length) % shoes.length;
     const shoe = shoes[currentIndex];
 
     chips.forEach((c, i) => c.setAttribute('aria-pressed', String(i === currentIndex)));
+    revealChip(chips[currentIndex]);
+    warmNeighbours(currentIndex);
     nameEl.textContent = shoe.name;
     document.querySelectorAll('[data-tryon-link]').forEach((a) => {
         a.href = `${a.href.split('?')[0]}?shoe=${shoe.id}`;
@@ -217,6 +247,4 @@ show(start)
         loading.style.opacity = '0';
         setTimeout(() => loading.remove(), 800);
     });
-// Warm the cache for the others so switching is instant.
-shoes.forEach((s) => loadShoe(s).catch(() => {}));
 frame();

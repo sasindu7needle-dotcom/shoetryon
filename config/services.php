@@ -32,6 +32,18 @@ return [
         'license_key' => env('DEEPAR_LICENSE_KEY'),
     ],
 
+    /*
+    | The n8n "ShopAR: new shoe from photos" workflow. The admin's Add new shoe
+    | page posts the photos to its form trigger (production URL, ending in
+    | /form/shopar-new-shoe) with the form's Basic Auth login.
+    */
+    'n8n' => [
+        'new_shoe_form_url' => env('N8N_NEW_SHOE_FORM_URL'),
+        'form_username' => env('N8N_FORM_USERNAME'),
+        'form_password' => env('N8N_FORM_PASSWORD'),
+        'timeout' => (int) env('N8N_TIMEOUT', 120),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

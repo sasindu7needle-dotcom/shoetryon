@@ -418,7 +418,9 @@ async function main() {
         });
     });
 
-    const wanted = new URLSearchParams(location.search).get('shoe');
+    // ?preview=<id> is the phone-test link n8n emails for a shoe that is still hidden.
+    const params = new URLSearchParams(location.search);
+    const wanted = params.get('preview') ?? params.get('shoe');
     const ready = buttons.filter((b) => b.dataset.effect);
     const first = ready.find((b) => b.dataset.id === wanted) ?? ready[0];
     if (first) selectShoe(first.dataset.id);

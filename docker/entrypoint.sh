@@ -19,5 +19,13 @@ php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 php artisan migrate --force
+# Fills the shoe library from config/shoes.php when it is empty; an existing library is left alone.
+php artisan db:seed --class=ShoeCatalogSeeder --force
+# Adds shoes the n8n workflow committed to resources/shoes/*.json, and unhides the ones approved since.
+php artisan shopar:sync-shoes
+
+if [ -n "$ADMIN_USERNAME" ] && [ -n "$ADMIN_PASSWORD" ]; then
+    php artisan shopar:admin "$ADMIN_USERNAME" --password="$ADMIN_PASSWORD"
+fi
 
 exec "$@"

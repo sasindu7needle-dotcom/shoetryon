@@ -19,6 +19,8 @@ RUN apt-get update \
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
+# The admin's Add new shoe page uploads four photos of up to 20 MB each.
+RUN { echo 'upload_max_filesize=20M'; echo 'post_max_size=90M'; echo 'max_execution_time=180'; } > /usr/local/etc/php/conf.d/uploads.ini
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf \
     && sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
 

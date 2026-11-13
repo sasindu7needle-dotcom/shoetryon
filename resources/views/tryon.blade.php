@@ -54,7 +54,8 @@
 
                 {{-- A swipeable row on phones, a grid next to the camera on large screens. The padding leaves room
                      for the selected card's outline; scroll-px keeps snapping from scrolling it out of view. --}}
-                <ul id="shoe-list" class="-m-1 flex snap-x scroll-px-1 gap-3 overflow-x-auto p-1 lg:grid lg:grid-cols-2 lg:overflow-visible">
+                {{-- Large collections scroll inside the picker on large screens instead of stretching it past the camera view. --}}
+                <ul id="shoe-list" class="-m-1 flex snap-x scroll-px-1 gap-3 overflow-x-auto p-1 lg:grid lg:max-h-[30rem] lg:grid-cols-2 lg:content-start lg:overflow-x-visible lg:overflow-y-auto">
                     @foreach ($shoes as $shoe)
                         {{-- 28% leaves part of the next card showing, so the row reads as swipeable. --}}
                         <li class="w-[28%] shrink-0 snap-start lg:w-auto">
