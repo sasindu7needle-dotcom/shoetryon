@@ -19,6 +19,24 @@ const LEG = { radius: 4.2, height: 40, bottom: 2, back: -6 };
 
 const DEG = Math.PI / 180;
 
+// A real foot is about this long. Used when the tracker reports in metres
+// instead of its own "24 per foot" units.
+const FOOT_LENGTH_METRES = 0.26;
+
+// The field of view DeepAR assumes across the long side of the camera frame
+// (see nb() in the SDK): phones 85°, Macs 54°, everything else 90°.
+function trackerLongSideFov() {
+    const ua = navigator.userAgent;
+    if (/Android|iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return 85;
+    if (/Macintosh|Mac OS X/.test(ua)) return 54;
+    return 90;
+}
+
+// Turns a camera space whose z axis points into the scene (computer-vision
+// style: y down, z forward) into three.js's (y up, looking down -z): a half
+// turn about x.
+const VISION_TO_GL = new THREE.Quaternion(1, 0, 0, 0);
+
 function makeLegMask() {
     const material = new THREE.MeshBasicMaterial({ colorWrite: false });
     const leg = new THREE.Mesh(new THREE.CylinderGeometry(LEG.radius, LEG.radius * 1.15, LEG.height, 24), material);
@@ -58,7 +76,14 @@ export class FeetRenderer {
         this.scene.environment = new THREE.PMREMGenerator(this.renderer).fromScene(new RoomEnvironment(), 0.04).texture;
         this.scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.2));
 
-        this.camera = new THREE.PerspectiveCamera(60, 1, 0.5, 10000);
+        // A near plane small enough for a tracker that reports in metres.
+        this.camera = new THREE.PerspectiveCamera(60, 1, 0.001, 10000);
+        // The tan of half the long side's field of view of the camera frame;
+        // DeepAR's onFootTrackingInitialized can refine it.
+        this.longSideTan = Math.tan((trackerLongSideFov() / 2) * DEG);
+        this.video = null;
+        this.viewKey = '';
+        this.convention = null;
         this.loader = new GLTFLoader();
         this.models = new Map();
         this.modelUrl = null;
@@ -71,15 +96,19 @@ export class FeetRenderer {
         // the same way DeepAR Studio's template builds the left shoe.
         this.feet = ['right', 'left'].map((side) => {
             const anchor = new THREE.Group();
+            // Converts the shoe from tracker units (24 per foot) to whatever
+            // units the tracker actually reports in.
+            const units = new THREE.Group();
             const mirror = new THREE.Group();
             const fitted = new THREE.Group();
             const leg = makeLegMask();
             mirror.scale.x = side === 'left' ? -1 : 1;
             mirror.add(fitted);
-            anchor.add(mirror, leg);
+            units.add(mirror, leg);
+            anchor.add(units);
             anchor.visible = false;
             this.scene.add(anchor);
-            return { side, anchor, fitted, leg };
+            return { side, anchor, units, fitted, leg };
         });
 
         new ResizeObserver(() => this.resize()).observe(stage);
@@ -90,13 +119,45 @@ export class FeetRenderer {
         const { clientWidth: width, clientHeight: height } = this.stage;
         if (!width || !height) return;
         this.renderer.setSize(width, height, false);
-        this.camera.aspect = width / height;
-        this.camera.updateProjectionMatrix();
+        this.viewKey = '';
+        this.matchCameraView();
     }
 
+    // The camera video DeepAR shows, so the 3D camera can see exactly the
+    // part of the frame that is on screen.
+    setVideo(video) {
+        this.video = video;
+        this.viewKey = '';
+    }
+
+    // DeepAR reports the vertical field of view of its 640×360 tracking
+    // frame, i.e. across the frame's short side.
     setFieldOfView(fovY) {
         if (!fovY) return;
-        this.camera.fov = fovY;
+        this.longSideTan = Math.tan((fovY / 2) * DEG) * (640 / 360);
+        this.viewKey = '';
+        this.matchCameraView();
+    }
+
+    // DeepAR draws the camera frame to cover the stage, cropping whatever
+    // sticks out. The 3D camera gets the field of view of the visible part,
+    // so a point the tracker puts on the foot lands on the foot on screen.
+    matchCameraView() {
+        const { clientWidth: width, clientHeight: height } = this.stage;
+        const videoWidth = this.video?.videoWidth || 0;
+        const videoHeight = this.video?.videoHeight || 0;
+        const key = `${width}x${height}:${videoWidth}x${videoHeight}:${this.longSideTan}`;
+        if (key === this.viewKey || !width || !height) return;
+        this.viewKey = key;
+
+        this.camera.aspect = width / height;
+        if (videoWidth && videoHeight) {
+            const shortSideTan = this.longSideTan * (Math.min(videoWidth, videoHeight) / Math.max(videoWidth, videoHeight));
+            const frameVerticalTan = videoHeight >= videoWidth ? this.longSideTan : shortSideTan;
+            const cover = Math.max(width / videoWidth, height / videoHeight);
+            const visibleHeight = height / (videoHeight * cover);
+            this.camera.fov = (2 * Math.atan(frameVerticalTan * visibleHeight)) / DEG;
+        }
         this.camera.updateProjectionMatrix();
     }
 
@@ -123,7 +184,10 @@ export class FeetRenderer {
         this.setFit(fit, legMask);
         this.active = true;
         this.canvas.hidden = false;
-        this.renderer.setAnimationLoop(() => this.renderer.render(this.scene, this.camera));
+        this.renderer.setAnimationLoop(() => {
+            this.matchCameraView();
+            this.renderer.render(this.scene, this.camera);
+        });
     }
 
     hide() {
@@ -162,7 +226,7 @@ export class FeetRenderer {
     describe() {
         const numbers = (vector) => vector.toArray().map((value) => value.toFixed(2)).join(', ');
         this.scene.updateMatrixWorld();
-        const lines = [`camera fov ${this.camera.fov.toFixed(1)}°, canvas ${this.renderer.domElement.width}×${this.renderer.domElement.height}, drawing ${this.active ? 'on' : 'off'}, canvas hidden ${this.canvas.hidden}`];
+        const lines = [`tracker space: ${this.convention ?? 'not seen yet'}, video ${this.video?.videoWidth ?? 0}×${this.video?.videoHeight ?? 0}`, `camera fov ${this.camera.fov.toFixed(1)}°, canvas ${this.renderer.domElement.width}×${this.renderer.domElement.height}, drawing ${this.active ? 'on' : 'off'}, canvas hidden ${this.canvas.hidden}`];
         for (const foot of this.feet) {
             if (!foot.anchor.visible) {
                 lines.push(`${foot.side} shoe: not shown (foot not tracked)`);
@@ -181,7 +245,9 @@ export class FeetRenderer {
     }
 
     // DeepAR's onFeetTracked data: position, quaternion rotation and scale of
-    // each foot in its camera space.
+    // each foot in its camera space. A tracked foot is always in front of the
+    // camera, so the sign of z tells which way that space faces, and its
+    // distance tells whether it is in metres or in tracker units.
     update(left, right) {
         for (const [foot, data] of [[this.feet[1], left], [this.feet[0], right]]) {
             foot.anchor.visible = this.active && data.detected;
@@ -189,9 +255,23 @@ export class FeetRenderer {
             const [px, py, pz] = data.position;
             const [qx, qy, qz, qw] = data.rotation;
             const [sx, sy, sz] = data.scale;
-            foot.anchor.position.set(px, py, pz);
-            foot.anchor.quaternion.set(qx, qy, qz, qw);
-            foot.anchor.scale.set(sx || 1, sy || 1, sz || 1);
+            const rotation = new THREE.Quaternion(qx, qy, qz, qw).normalize();
+            const isVisionSpace = pz > 0;
+            if (isVisionSpace) {
+                foot.anchor.position.set(px, -py, -pz);
+                foot.anchor.quaternion.copy(VISION_TO_GL).multiply(rotation);
+            } else {
+                foot.anchor.position.set(px, py, pz);
+                foot.anchor.quaternion.copy(rotation);
+            }
+            foot.anchor.scale.set(Math.abs(sx) || 1, Math.abs(sy) || 1, Math.abs(sz) || 1);
+
+            // A foot 24 units long can't be under 10 units from the camera:
+            // such a small distance means the tracker reports metres.
+            const isMetres = Math.hypot(px, py, pz) < 10;
+            const scaleSize = (Math.abs(sx || 1) + Math.abs(sy || 1) + Math.abs(sz || 1)) / 3;
+            foot.units.scale.setScalar(isMetres ? FOOT_LENGTH_METRES / FOOT_LENGTH / scaleSize : 1);
+            this.convention = `${isVisionSpace ? 'z forward (converted)' : 'z backward (three.js)'}, ${isMetres ? 'metres' : 'tracker units'}`;
         }
     }
 }

@@ -193,6 +193,7 @@ async function keepScreenOn() {
 async function showVideo() {
     await video.play();
     ar.setVideoElement(video, false);
+    feetRenderer.setVideo(video);
     hideStatus();
     keepScreenOn();
 }

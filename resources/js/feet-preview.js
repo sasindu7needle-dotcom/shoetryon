@@ -218,6 +218,7 @@ async function main() {
         await new Promise((resolve) => showStatus('Tap to start the camera.', { isBusy: false, action: { label: 'Start camera', run: () => video.play().then(resolve) } }));
     }
     ar.setVideoElement(video, false);
+    feetRenderer.setVideo(video);
     status.hidden = true;
 
     document.addEventListener('visibilitychange', () => ar.setPaused(document.hidden));
