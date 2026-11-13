@@ -12,10 +12,21 @@ export const FOOT_LENGTH = 24;
 
 export const DEFAULT_FIT = { scale: 1, rotation: [0, 0, 0], position: [0, 0, 0] };
 
-// A rough ankle and lower leg, drawn only into the depth buffer, so the back
-// of the shoe's collar disappears behind the wearer's leg as it would in real
-// life. Toes point towards +z on the tracked foot.
-const LEG = { radius: 4.2, height: 40, bottom: 2, back: -6 };
+// A rough foot, ankle and lower leg, drawn only into the depth buffer, so the
+// wearer's own foot shows inside the shoe: the footbed and the inside of the
+// shoe are hidden where the foot is, and the back of the collar disappears
+// behind the leg, while straps and the upper in front of the foot still
+// cover it. Sized from the shoe as it sits on the foot, as fractions of its
+// length (L), width (W) and height (H). Toes point towards +z on the foot.
+const WEARER = {
+    soleTop: 0.2, // the footbed, up from the bottom of the shoe (× H)
+    footHalfWidth: 0.37, // × W
+    footHalfHeight: 0.45, // above the footbed (× H); stays under the straps
+    footHalfLength: 0.46, // × L
+    legRadius: 0.17, // × L
+    legHeight: 2, // × L
+    legFromHeel: 0.25, // the leg's centre, forward of the back of the shoe (× L)
+};
 
 const DEG = Math.PI / 180;
 
@@ -37,17 +48,24 @@ function trackerLongSideFov() {
 // turn about x.
 const VISION_TO_GL = new THREE.Quaternion(1, 0, 0, 0);
 
-function makeLegMask() {
+// The foot and leg occluders, laid out by layoutWearer() once the shoe is known.
+function makeWearer() {
     const material = new THREE.MeshBasicMaterial({ colorWrite: false });
-    const leg = new THREE.Mesh(new THREE.CylinderGeometry(LEG.radius, LEG.radius * 1.15, LEG.height, 24), material);
-    leg.position.set(0, LEG.bottom + LEG.height / 2, LEG.back);
-    leg.renderOrder = -1;
-    leg.visible = false;
-    return leg;
+    const foot = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), material);
+    // Unit height, standing on y = 0, wider at the ankle than higher up.
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(1 / 1.15, 1, 1, 24).translate(0, 0.5, 0), material);
+    const wearer = new THREE.Group();
+    wearer.add(foot, leg);
+    for (const mesh of [foot, leg]) {
+        mesh.renderOrder = -1;
+    }
+    wearer.visible = false;
+    return { wearer, foot, leg };
 }
 
 // Centres the model and scales it so its longest side is a foot long, with
 // that side along the foot's length (z), whatever units and facing Tripo used.
+// Remembers the resulting bounds, which the foot and leg occluders are sized from.
 function normalise(model) {
     const box = new THREE.Box3().setFromObject(model);
     const size = box.getSize(new THREE.Vector3());
@@ -59,6 +77,10 @@ function normalise(model) {
         holder.rotation.y = Math.PI / 2;
     }
     holder.scale.setScalar(FOOT_LENGTH / (Math.max(size.x, size.z) || 1));
+
+    holder.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(holder);
+    holder.userData.bounds = { min: bounds.min.toArray(), max: bounds.max.toArray() };
 
     return holder;
 }
@@ -89,6 +111,7 @@ export class FeetRenderer {
         this.loader = new GLTFLoader();
         this.models = new Map();
         this.modelUrl = null;
+        this.modelBounds = null;
         this.fit = { ...DEFAULT_FIT };
         this.legMask = false;
         this.active = false;
@@ -103,14 +126,14 @@ export class FeetRenderer {
             const units = new THREE.Group();
             const mirror = new THREE.Group();
             const fitted = new THREE.Group();
-            const leg = makeLegMask();
+            const { wearer, foot, leg } = makeWearer();
             mirror.scale.x = side === 'left' ? -1 : 1;
             mirror.add(fitted);
-            units.add(mirror, leg);
+            units.add(mirror, wearer);
             anchor.add(units);
             anchor.visible = false;
             this.scene.add(anchor);
-            return { side, anchor, units, fitted, leg };
+            return { side, anchor, units, mirror, fitted, wearer, foot, leg };
         });
 
         new ResizeObserver(() => this.resize()).observe(stage);
@@ -185,6 +208,7 @@ export class FeetRenderer {
             foot.fitted.clear();
             foot.fitted.add(foot.side === 'right' ? model : model.clone());
         }
+        this.modelBounds = model.userData.bounds;
         this.setFit(fit, legMask);
         this.active = true;
         this.canvas.hidden = false;
@@ -210,8 +234,55 @@ export class FeetRenderer {
             foot.fitted.scale.set(scale * sx, scale * sy, scale * sz);
             foot.fitted.rotation.set(rx * DEG, ry * DEG, rz * DEG);
             foot.fitted.position.set(px, py, pz);
-            foot.leg.visible = this.legMask;
+            foot.wearer.visible = this.legMask;
+            this.layoutWearer(foot);
         }
+    }
+
+    // Puts the foot on the shoe's footbed and the leg above its heel, using
+    // the shoe's bounds as it sits on the tracked foot (after the fit).
+    layoutWearer(foot) {
+        if (!this.modelBounds) return;
+        foot.fitted.updateMatrix();
+        foot.mirror.updateMatrix();
+        const box = new THREE.Box3(new THREE.Vector3(...this.modelBounds.min), new THREE.Vector3(...this.modelBounds.max))
+            .applyMatrix4(foot.fitted.matrix)
+            .applyMatrix4(foot.mirror.matrix);
+        const size = box.getSize(new THREE.Vector3());
+        const centre = box.getCenter(new THREE.Vector3());
+        const soleTop = box.min.y + WEARER.soleTop * size.y;
+
+        foot.foot.position.set(centre.x, soleTop, centre.z);
+        foot.foot.scale.set(WEARER.footHalfWidth * size.x, WEARER.footHalfHeight * size.y, WEARER.footHalfLength * size.z);
+
+        foot.leg.position.set(centre.x, soleTop, box.min.z + WEARER.legFromHeel * size.z);
+        foot.leg.scale.set(WEARER.legRadius * size.z, WEARER.legHeight * size.z, WEARER.legRadius * size.z);
+    }
+
+    // The camera frame with the shoes drawn on it, as the stage shows it, for
+    // a photo of the try-on. The shoes are drawn again right before they are
+    // copied, since WebGL clears its canvas after each frame.
+    snapshot({ maxSide = 1600 } = {}) {
+        const { clientWidth: width, clientHeight: height } = this.stage;
+        const ratio = Math.min(this.renderer.getPixelRatio(), maxSide / Math.max(width, height));
+        const photo = document.createElement('canvas');
+        photo.width = Math.round(width * ratio);
+        photo.height = Math.round(height * ratio);
+        const context = photo.getContext('2d');
+
+        const video = this.video;
+        if (video?.videoWidth && video.videoHeight) {
+            const cover = Math.max(photo.width / video.videoWidth, photo.height / video.videoHeight);
+            const drawnWidth = video.videoWidth * cover;
+            const drawnHeight = video.videoHeight * cover;
+            context.drawImage(video, (photo.width - drawnWidth) / 2, (photo.height - drawnHeight) / 2, drawnWidth, drawnHeight);
+        }
+        if (this.active) {
+            this.matchCameraView();
+            this.renderer.render(this.scene, this.camera);
+            context.drawImage(this.renderer.domElement, 0, 0, photo.width, photo.height);
+        }
+        return photo;
     }
 
     // Coloured axes on each tracked foot, so a debug session can see where the

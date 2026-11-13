@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\FitRoundWorkflow;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\SaveFeetFitRequest;
+use App\Http\Requests\Admin\StoreShoeFitRoundRequest;
 use App\Models\Shoe;
 use App\Models\ShoeSubmission;
+use App\ShoeFitRoundStatus;
 use App\ShoeSubmissionStatus;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -28,6 +31,9 @@ class ShoeSubmissionPreviewController extends Controller
         );
 
         $isAwaitingReview = $submission->status === ShoeSubmissionStatus::ModelReady;
+        $fit = $submission->preview_fit['fit'] ?? Shoe::FEET_DEFAULT_FIT;
+        $latestRound = $submission->fitRounds()->latest('id')->first();
+        $canAskClaude = $isAwaitingReview && FitRoundWorkflow::isConfigured();
 
         return view('admin.shoe-submissions.preview', [
             'submission' => $submission,
@@ -38,9 +44,17 @@ class ShoeSubmissionPreviewController extends Controller
                 'rootPath' => asset('vendor/deepar').'/',
                 'modelUrl' => route('admin.shoe-submissions.files.show', [$submission, 'model']),
                 'trackerEffect' => Shoe::trackerEffectUrl(),
-                'fit' => $submission->preview_fit['fit'] ?? Shoe::FEET_DEFAULT_FIT,
-                'legMask' => (bool) ($submission->preview_fit['leg_mask'] ?? false),
+                'fit' => $fit,
+                // A fit Claude answered with is kept; any other saved fit is
+                // replaced by the automatic one.
+                'isClaudeFit' => $latestRound?->status === ShoeFitRoundStatus::Applied && $latestRound->new_fit == $fit,
+                'legMask' => (bool) ($submission->preview_fit['leg_mask'] ?? true),
                 'saveUrl' => $isAwaitingReview ? route('admin.shoe-submissions.preview.update', $submission) : null,
+                'photoName' => $submission->slug.'-on-feet',
+                'claudeUrl' => $canAskClaude ? route('admin.shoe-submissions.fit-rounds.store', $submission) : null,
+                'claudeStatusUrl' => $canAskClaude ? route('admin.shoe-submissions.fit-rounds.latest', $submission) : null,
+                'isClaudeWorking' => $latestRound?->status === ShoeFitRoundStatus::Processing,
+                'maxPhotoBytes' => StoreShoeFitRoundRequest::MAX_SCREENSHOT_KILOBYTES * 1024,
             ],
         ]);
     }

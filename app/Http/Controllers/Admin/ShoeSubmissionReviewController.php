@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ReviewShoeSubmissionRequest;
 use App\Models\Shoe;
 use App\Models\ShoeSubmission;
+use App\ShoeFitRoundStatus;
 use App\ShoeSubmissionStatus;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
@@ -25,6 +26,10 @@ class ShoeSubmissionReviewController extends Controller
 
         $isApproval = $request->isApproval();
 
+        if ($isApproval && $submission->fitRounds()->where('status', ShoeFitRoundStatus::Processing)->exists()) {
+            return back()->withInput()->with('error', "Claude is still changing {$submission->name}'s preview fit. Wait for it, check it on your feet, then approve.");
+        }
+
         if ($isApproval && Shoe::query()->where('slug', $submission->slug)->exists()) {
             return back()->withInput()->with('error', "The library already has a shoe with the id “{$submission->slug}”.");
         }
@@ -38,7 +43,7 @@ class ShoeSubmissionReviewController extends Controller
                     'thumb' => $submission->photo_path,
                     'effect' => null,
                     'fit' => $submission->preview_fit['fit'] ?? Shoe::FEET_DEFAULT_FIT,
-                    'leg_mask' => (bool) ($submission->preview_fit['leg_mask'] ?? false),
+                    'leg_mask' => (bool) ($submission->preview_fit['leg_mask'] ?? true),
                     'is_visible' => false,
                 ]);
             }

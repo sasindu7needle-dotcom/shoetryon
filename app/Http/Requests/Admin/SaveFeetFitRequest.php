@@ -22,26 +22,37 @@ class SaveFeetFitRequest extends FormRequest
             'fit.rotation.*' => ['required', 'numeric', 'between:-360,360'],
             'fit.position' => ['required', 'array:0,1,2', 'size:3'],
             'fit.position.*' => ['required', 'numeric', 'between:-100,100'],
+            'fit.stretch' => ['nullable', 'array:0,1,2', 'size:3'],
+            'fit.stretch.*' => ['required', 'numeric', 'gt:0', 'max:10'],
             'leg_mask' => ['required', 'boolean'],
         ];
     }
 
     /**
-     * The fit and leg mask as the submission stores them.
+     * The fit and leg mask as the submission stores them. A stretch (only
+     * Claude sets one) is kept unless it is 1 on every axis.
      *
-     * @return array{fit: array{scale: float, rotation: list<float>, position: list<float>}, leg_mask: bool}
+     * @return array{fit: array{scale: float, rotation: list<float>, position: list<float>, stretch?: list<float>}, leg_mask: bool}
      */
     public function previewFit(): array
     {
         $toFloats = fn (array $values): array => array_map('floatval', array_values($values));
         $fit = $this->validated('fit');
 
+        $previewFit = [
+            'scale' => (float) $fit['scale'],
+            'rotation' => $toFloats($fit['rotation']),
+            'position' => $toFloats($fit['position']),
+        ];
+
+        $stretch = $toFloats($fit['stretch'] ?? [1, 1, 1]);
+
+        if ($stretch !== [1.0, 1.0, 1.0]) {
+            $previewFit['stretch'] = $stretch;
+        }
+
         return [
-            'fit' => [
-                'scale' => (float) $fit['scale'],
-                'rotation' => $toFloats($fit['rotation']),
-                'position' => $toFloats($fit['position']),
-            ],
+            'fit' => $previewFit,
             'leg_mask' => $this->boolean('leg_mask'),
         ];
     }

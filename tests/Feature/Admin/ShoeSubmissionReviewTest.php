@@ -376,7 +376,7 @@ class ShoeSubmissionReviewTest extends TestCase
             ->assertSee(route('tryon', ['preview' => 'leather-loafer']), false);
     }
 
-    public function test_approving_without_a_preview_fit_starts_from_the_default_fit(): void
+    public function test_approving_without_a_preview_fit_starts_from_the_default_fit_with_the_feet_inside(): void
     {
         $submission = $this->submissionWithFiles();
 
@@ -387,7 +387,7 @@ class ShoeSubmissionReviewTest extends TestCase
 
         $shoe = Shoe::query()->where('slug', 'leather-loafer')->sole();
         $this->assertEquals(Shoe::FEET_DEFAULT_FIT, $shoe->fit);
-        $this->assertFalse($shoe->leg_mask);
+        $this->assertTrue($shoe->leg_mask);
     }
 
     public function test_approving_a_shoe_whose_id_is_already_in_the_library_is_refused(): void

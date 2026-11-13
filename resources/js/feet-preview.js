@@ -4,7 +4,8 @@ import { DEFAULT_FIT, FeetRenderer, startFootTrackingOnly } from './feet-rendere
 // The admin's "preview on my feet" page: Tripo's GLB on the tracked feet,
 // before the shoe is approved. The shoe is fitted automatically (centred on
 // each foot, one foot long, along the foot); that fit is saved to the
-// submission and becomes the shoe's starting fit.
+// submission and becomes the shoe's starting fit. A photo of the try-on can
+// be sent to Claude, whose better fit replaces the automatic one.
 
 const config = window.FEET_PREVIEW;
 const stage = document.getElementById('feet-stage');
@@ -19,7 +20,9 @@ const legMaskButton = document.querySelector('[data-leg-mask]');
 const reload = { label: 'Reload', run: () => location.reload() };
 const feetRenderer = new FeetRenderer(stage, document.getElementById('feet-shoes'));
 
-const fit = { scale: DEFAULT_FIT.scale, rotation: [...DEFAULT_FIT.rotation], position: [...DEFAULT_FIT.position] };
+let fit = config.isClaudeFit
+    ? structuredClone(config.fit)
+    : { scale: DEFAULT_FIT.scale, rotation: [...DEFAULT_FIT.rotation], position: [...DEFAULT_FIT.position] };
 let legMask = config.legMask;
 
 function showStatus(message, { isBusy = true, action = null } = {}) {
@@ -54,7 +57,7 @@ async function save() {
             },
             body: JSON.stringify({ fit, leg_mask: legMask }),
         });
-        savedNote.textContent = response.ok ? 'Fitted automatically to your feet.' : `Could not save the fit (error ${response.status}). Reload and try again.`;
+        savedNote.textContent = response.ok ? describeFit() : `Could not save the fit (error ${response.status}). Reload and try again.`;
     } catch {
         savedNote.textContent = 'Could not save the fit. Check your connection.';
     }
@@ -62,9 +65,15 @@ async function save() {
 
 // ---- controls ---------------------------------------------------------------------
 
+function describeFit() {
+    return config.isClaudeFit ? 'Using the fit Claude suggested.' : 'Fitted automatically to your feet.';
+}
+
+// "Feet inside" hides the shoe's footbed and collar where the wearer's foot
+// and leg are, so the real foot shows inside the shoe.
 function showLegMaskState() {
     legMaskButton.setAttribute('aria-pressed', String(legMask));
-    legMaskButton.textContent = legMask ? 'Leg mask: on' : 'Leg mask: off';
+    legMaskButton.textContent = legMask ? 'Feet inside: on' : 'Feet inside: off';
 }
 
 legMaskButton.addEventListener('click', () => {
@@ -75,10 +84,135 @@ legMaskButton.addEventListener('click', () => {
 });
 showLegMaskState();
 
-// A fit saved by hand before the shoe was fitted automatically is replaced.
-const isSavedFitAutomatic = JSON.stringify(config.fit) === JSON.stringify(fit);
-if (!isSavedFitAutomatic) {
+// A fit saved by hand before the shoe was fitted automatically is replaced;
+// a fit Claude answered with is kept.
+const isSavedFitCurrent = JSON.stringify(config.fit) === JSON.stringify(fit);
+if (!isSavedFitCurrent) {
     scheduleSave();
+}
+if (config.isClaudeFit && config.saveUrl) {
+    savedNote.textContent = describeFit();
+}
+
+// ---- photo, and asking Claude for a better fit ------------------------------------
+
+const photoButton = document.querySelector('[data-take-photo]');
+const photoDialog = document.getElementById('feet-photo');
+const photoImage = photoDialog.querySelector('[data-photo-image]');
+const photoSave = photoDialog.querySelector('[data-photo-save]');
+const photoComment = photoDialog.querySelector('[data-photo-comment]');
+const photoSend = photoDialog.querySelector('[data-photo-send]');
+const photoError = photoDialog.querySelector('[data-photo-error]');
+let photoBlob = null;
+let isClaudeWorking = config.isClaudeWorking;
+
+function showPhotoError(message) {
+    photoError.hidden = !message;
+    photoError.textContent = message ?? '';
+}
+
+function showClaudeState() {
+    if (!photoSend) return;
+    photoSend.disabled = isClaudeWorking;
+    photoSend.textContent = isClaudeWorking ? 'Claude is working on the last photo…' : 'Send to Claude to optimize the fit';
+}
+
+function toBlob(canvas, quality) {
+    return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+}
+
+photoButton.addEventListener('click', async () => {
+    const canvas = feetRenderer.snapshot();
+    let blob = await toBlob(canvas, 0.9);
+    if (blob && blob.size > config.maxPhotoBytes) {
+        blob = await toBlob(canvas, 0.6);
+    }
+    if (!blob) {
+        savedNote.textContent = 'Could not take the photo. Try again.';
+        return;
+    }
+    if (photoImage.src) URL.revokeObjectURL(photoImage.src);
+    photoBlob = blob;
+    photoImage.src = URL.createObjectURL(blob);
+    photoSave.href = photoImage.src;
+    photoSave.download = `${config.photoName}-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.jpg`;
+    showPhotoError(null);
+    showClaudeState();
+    photoDialog.showModal();
+});
+
+photoSend?.addEventListener('click', async () => {
+    if (!photoBlob || isClaudeWorking) return;
+    const comment = photoComment.value.trim();
+    if (comment && comment.length < 5) {
+        showPhotoError('Write a little more (at least 5 characters), or leave it empty.');
+        return;
+    }
+    const body = new FormData();
+    body.append('photo', photoBlob, 'try-on.jpg');
+    if (comment) body.append('comment', comment);
+
+    photoSend.disabled = true;
+    photoSend.textContent = 'Sending…';
+    showPhotoError(null);
+    try {
+        const response = await fetch(config.claudeUrl, {
+            method: 'POST',
+            headers: { Accept: 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+            body,
+        });
+        const answer = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            const firstError = Object.values(answer.errors ?? {})[0]?.[0];
+            showPhotoError(firstError ?? answer.message ?? `Could not send the photo (error ${response.status}).`);
+            showClaudeState();
+            return;
+        }
+        photoComment.value = '';
+        photoDialog.close();
+        isClaudeWorking = true;
+        savedNote.textContent = 'Sent to Claude. The new fit shows here in about a minute; keep the camera open.';
+        watchClaude(answer.round?.id);
+    } catch {
+        showPhotoError('Could not send the photo. Check your connection.');
+        showClaudeState();
+    }
+});
+
+// Asks every few seconds whether Claude has answered, and puts the new fit
+// on the feet as soon as it is saved.
+function watchClaude(roundId = null) {
+    if (!config.claudeStatusUrl) return;
+    const check = async () => {
+        try {
+            const response = await fetch(config.claudeStatusUrl, { headers: { Accept: 'application/json' } });
+            const round = response.ok ? (await response.json()).round : null;
+            if (round && (roundId === null || round.id === roundId) && round.status !== 'processing') {
+                isClaudeWorking = false;
+                showClaudeState();
+                if (round.status === 'applied' && round.fit) {
+                    fit = structuredClone(round.fit);
+                    config.isClaudeFit = true;
+                    feetRenderer.setFit(fit, legMask);
+                    savedNote.textContent = `Claude's new fit is on${round.message ? `: ${round.message}` : '.'}`;
+                } else {
+                    savedNote.textContent = round.status === 'no_change'
+                        ? `Claude changed nothing${round.message ? `: ${round.message}` : '.'}`
+                        : `Claude could not finish${round.message ? `: ${round.message}` : '.'}`;
+                }
+                return;
+            }
+        } catch {
+            // Try again on the next tick.
+        }
+        setTimeout(check, 5000);
+    };
+    setTimeout(check, 5000);
+}
+
+if (isClaudeWorking) {
+    savedNote.textContent = 'Claude is working on your last photo…';
+    watchClaude();
 }
 
 // ---- camera -----------------------------------------------------------------------
@@ -203,6 +337,7 @@ async function main() {
     ar.setVideoElement(video, false);
     feetRenderer.setVideo(video);
     status.hidden = true;
+    photoButton.disabled = false;
 
     document.addEventListener('visibilitychange', () => ar.setPaused(document.hidden));
     window.addEventListener('pagehide', () => stream.getTracks().forEach((track) => track.stop()));

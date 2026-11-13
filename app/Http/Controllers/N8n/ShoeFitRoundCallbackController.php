@@ -19,7 +19,8 @@ class ShoeFitRoundCallbackController extends Controller
 {
     /**
      * Saves Claude's new fit to the shoe (it takes effect on the next try-on,
-     * no rebuild needed), or records that Claude found nothing to change.
+     * no rebuild needed) or to the new shoe's preview fit (the open feet
+     * preview picks it up), or records that Claude found nothing to change.
      */
     public function storeResult(StoreFitRoundResultRequest $request, ShoeFitRound $round): JsonResponse
     {
@@ -34,7 +35,15 @@ class ShoeFitRoundCallbackController extends Controller
         $fit = $request->fit();
 
         DB::transaction(function () use ($round, $fit, $request) {
-            $round->shoe->update(['fit' => $fit]);
+            if ($round->submission !== null) {
+                $round->submission->update(['preview_fit' => [
+                    'fit' => $fit,
+                    'leg_mask' => (bool) ($round->submission->preview_fit['leg_mask'] ?? true),
+                ]]);
+            } else {
+                $round->shoe->update(['fit' => $fit]);
+            }
+
             $round->update([
                 'status' => ShoeFitRoundStatus::Applied,
                 'new_fit' => $fit,

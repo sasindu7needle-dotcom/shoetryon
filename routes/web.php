@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\ShoeFitRoundController;
 use App\Http\Controllers\Admin\ShoePositionController;
 use App\Http\Controllers\Admin\ShoeSubmissionController;
 use App\Http\Controllers\Admin\ShoeSubmissionFileController;
+use App\Http\Controllers\Admin\ShoeSubmissionFitRoundController;
 use App\Http\Controllers\Admin\ShoeSubmissionLibraryController;
 use App\Http\Controllers\Admin\ShoeSubmissionPreviewController;
 use App\Http\Controllers\Admin\ShoeSubmissionPublishController;
@@ -34,6 +35,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('shoes/new/{submission}/files/{file}', [ShoeSubmissionFileController::class, 'show'])->whereIn('file', ['photo', 'model'])->name('shoe-submissions.files.show');
         Route::get('shoes/new/{submission}/preview', [ShoeSubmissionPreviewController::class, 'show'])->name('shoe-submissions.preview');
         Route::put('shoes/new/{submission}/preview', [ShoeSubmissionPreviewController::class, 'update'])->name('shoe-submissions.preview.update');
+        Route::get('shoes/new/{submission}/fit-rounds/latest', [ShoeSubmissionFitRoundController::class, 'show'])->name('shoe-submissions.fit-rounds.latest');
+        Route::post('shoes/new/{submission}/fit-rounds', [ShoeSubmissionFitRoundController::class, 'store'])->name('shoe-submissions.fit-rounds.store');
         Route::post('shoes/new/{submission}/review', [ShoeSubmissionReviewController::class, 'store'])->name('shoe-submissions.review.store');
         Route::post('shoes/new/{submission}/library', [ShoeSubmissionLibraryController::class, 'store'])->name('shoe-submissions.library.store');
         Route::post('shoes/new/{submission}/publish', [ShoeSubmissionPublishController::class, 'store'])->name('shoe-submissions.publish.store');
