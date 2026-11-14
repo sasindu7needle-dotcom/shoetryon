@@ -299,6 +299,7 @@ async function main() {
         },
     });
 
+    feetRenderer.followFootNodes(ar);
     ar.callbacks.onFootTrackingInitialized = (fovY) => feetRenderer.setFieldOfView(fovY);
     let feetVisible = null;
     let lastFeet = null;

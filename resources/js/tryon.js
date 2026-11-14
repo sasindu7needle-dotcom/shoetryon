@@ -420,6 +420,7 @@ async function main() {
         fail('The 3D view was interrupted by the phone.', reload);
     });
 
+    feetRenderer.followFootNodes(ar);
     ar.callbacks.onFootTrackingInitialized = (fovY) => {
         feetRenderer.setFieldOfView(fovY);
         trackingReady = true;

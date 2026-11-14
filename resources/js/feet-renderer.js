@@ -48,6 +48,14 @@ function trackerLongSideFov() {
 // style: y down, z forward) into three.js's (y up, looking down -z): a half
 // turn about x.
 const VISION_TO_GL = new THREE.Quaternion(1, 0, 0, 0);
+const VISION_TO_GL_MATRIX = new THREE.Matrix4().makeScale(1, -1, -1);
+
+// The tracker effect's nodes that DeepAR moves onto each foot. Every shoe
+// effect (Studio's template and build-deepar-effect.py) has them right under
+// Root, with the foot occluder and the effect's shoe directly inside, laid out
+// big toe +x, up +y, toes +z: the frame SHOE_SEAT is measured in.
+const FOOT_NODES = { right: 'foot_position_right', left: 'foot_position_left' };
+const ROOT_NODE = 'Root';
 
 // The foot and leg occluders, laid out by layoutWearer() once the shoe is known.
 function makeWearer() {
@@ -137,6 +145,7 @@ export class FeetRenderer {
         this.fit = { ...DEFAULT_FIT };
         this.legMask = false;
         this.active = false;
+        this.deepAR = null;
 
         // One anchor per foot follows the tracker. Inside it, `seat` puts the
         // middle of the shoe's sole on the foot and `fitted` carries the
@@ -157,9 +166,11 @@ export class FeetRenderer {
             mirror.add(seat);
             units.add(mirror, wearer);
             anchor.add(units);
+            // Posed from a whole matrix each frame (see update()).
+            anchor.matrixAutoUpdate = false;
             anchor.visible = false;
             this.scene.add(anchor);
-            return { side, anchor, units, mirror, seat, fitted, wearer, foot, leg };
+            return { side, anchor, units, mirror, seat, fitted, wearer, foot, leg, poseNote: '' };
         });
 
         new ResizeObserver(() => this.resize()).observe(stage);
@@ -350,14 +361,49 @@ export class FeetRenderer {
             const centre = box.getCenter(new THREE.Vector3());
             const screen = centre.clone().project(this.camera);
             lines.push(`${foot.side} shoe: size (${numbers(box.getSize(new THREE.Vector3()))}) at (${numbers(centre)}), distance ${centre.length().toFixed(1)}, screen (${screen.x.toFixed(2)}, ${screen.y.toFixed(2)}) depth ${screen.z.toFixed(2)}`);
+            lines.push(`${foot.side} pose from ${foot.poseNote}`);
         }
         return lines;
     }
 
+    // The DeepAR instance whose tracker effect's foot nodes the shoes follow.
+    followFootNodes(ar) {
+        this.deepAR = ar;
+    }
+
+    // Where DeepAR puts the tracker effect's node for this foot: the pose its
+    // own shoes (and the foot occluder) are drawn with, so a GLB placed in
+    // that frame sits exactly where a DeepAR shoe would. onFeetTracked's
+    // quaternion is not in that frame: phones showed shoes turned a quarter
+    // turn, upper along the foot and toes across it. Null when no tracker
+    // effect is loaded. "From node to Root" could be either direction; the
+    // right one puts the foot where the tracker reports it.
+    footNodePose(side, reported) {
+        if (!this.deepAR) return null;
+        let values;
+        try {
+            values = this.deepAR.getTransformationBetween(FOOT_NODES[side], ROOT_NODE);
+        } catch {
+            return null;
+        }
+        if (values?.length !== 16) return null;
+        const pose = new THREE.Matrix4().fromArray(values);
+        if (!(Math.abs(pose.determinant()) > 1e-12)) return null;
+        const inverse = pose.clone().invert();
+        const flipped = reported.clone().multiply(new THREE.Vector3(1, -1, -1));
+        const offset = (matrix) => {
+            const position = new THREE.Vector3().setFromMatrixPosition(matrix);
+            return Math.min(position.distanceTo(reported), position.distanceTo(flipped));
+        };
+        return offset(inverse) < offset(pose) ? inverse : pose;
+    }
+
     // DeepAR's onFeetTracked data: position, quaternion rotation and scale of
-    // each foot in its camera space. A tracked foot is always in front of the
-    // camera, so the sign of z tells which way that space faces, and its
-    // distance tells whether it is in metres or in tracker units.
+    // each foot in its camera space. The pose comes from the tracker effect's
+    // foot node when there is one (see footNodePose), and from this data
+    // otherwise. A tracked foot is always in front of the camera, so the sign
+    // of z tells which way that space faces, and its distance tells whether
+    // it is in metres or in tracker units.
     update(left, right) {
         for (const [foot, data] of [[this.feet[1], left], [this.feet[0], right]]) {
             foot.anchor.visible = this.active && data.detected;
@@ -365,21 +411,37 @@ export class FeetRenderer {
             const [px, py, pz] = data.position;
             const [qx, qy, qz, qw] = data.rotation;
             const [sx, sy, sz] = data.scale;
-            const rotation = new THREE.Quaternion(qx, qy, qz, qw).normalize();
+            const reported = new THREE.Vector3(px, py, pz);
             const isVisionSpace = pz > 0;
+            const callbackRotation = new THREE.Quaternion(qx, qy, qz, qw).normalize();
             if (isVisionSpace) {
-                foot.anchor.position.set(px, -py, -pz);
-                foot.anchor.quaternion.copy(VISION_TO_GL).multiply(rotation);
-            } else {
-                foot.anchor.position.set(px, py, pz);
-                foot.anchor.quaternion.copy(rotation);
+                callbackRotation.premultiply(VISION_TO_GL);
             }
-            foot.anchor.scale.set(Math.abs(sx) || 1, Math.abs(sy) || 1, Math.abs(sz) || 1);
+            const callbackPose = new THREE.Matrix4().compose(
+                isVisionSpace ? new THREE.Vector3(px, -py, -pz) : reported,
+                callbackRotation,
+                new THREE.Vector3(Math.abs(sx) || 1, Math.abs(sy) || 1, Math.abs(sz) || 1),
+            );
+
+            const nodePose = this.footNodePose(foot.side, reported);
+            let pose = callbackPose;
+            if (nodePose) {
+                const isNodeVisionSpace = nodePose.elements[14] > 0;
+                pose = isNodeVisionSpace ? VISION_TO_GL_MATRIX.clone().multiply(nodePose) : nodePose;
+                const nodeRotation = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().extractRotation(pose));
+                foot.poseNote = `effect node (turned ${(callbackRotation.angleTo(nodeRotation) / DEG).toFixed(0)}° from onFeetTracked)`;
+            } else {
+                foot.poseNote = 'onFeetTracked (no tracker effect node)';
+            }
+            foot.anchor.matrix.copy(pose);
+            foot.anchor.matrixWorldNeedsUpdate = true;
 
             // A foot 24 units long can't be under 10 units from the camera:
             // such a small distance means the tracker reports metres.
-            const isMetres = Math.hypot(px, py, pz) < 10;
-            const scaleSize = (Math.abs(sx || 1) + Math.abs(sy || 1) + Math.abs(sz || 1)) / 3;
+            const distance = new THREE.Vector3().setFromMatrixPosition(pose).length();
+            const isMetres = distance < 10;
+            const poseScale = new THREE.Vector3().setFromMatrixScale(pose);
+            const scaleSize = (poseScale.x + poseScale.y + poseScale.z) / 3 || 1;
             foot.units.scale.setScalar(isMetres ? FOOT_LENGTH_METRES / FOOT_LENGTH / scaleSize : 1);
             this.convention = `${isVisionSpace ? 'z forward (converted)' : 'z backward (three.js)'}, ${isMetres ? 'metres' : 'tracker units'}`;
         }
