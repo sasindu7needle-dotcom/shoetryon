@@ -376,6 +376,50 @@ class ShoeSubmissionReviewTest extends TestCase
             ->assertSee(route('tryon', ['preview' => 'leather-loafer']), false);
     }
 
+    public function test_approving_a_shoe_with_a_built_effect_wears_it_through_the_effect(): void
+    {
+        $submission = $this->submissionWithFiles();
+        $effectFit = ['scale' => 92.593, 'rotation' => [0, -90, 0], 'position' => [0.7, -1.82, -4.6]];
+        $submission->update(['effect_path' => 'effects/generated/leather-loafer.deepar', 'preview_fit' => ['fit' => $effectFit, 'leg_mask' => true]]);
+
+        $this->actingAs($this->admin)->post(route('admin.shoe-submissions.review.store', $submission), [
+            'decision' => 'approve',
+            'checks' => array_keys(ReviewShoeSubmissionRequest::CHECKS),
+        ]);
+
+        $shoe = Shoe::query()->where('slug', 'leather-loafer')->sole();
+        $this->assertSame('effects/generated/leather-loafer.deepar', $shoe->effect);
+        $this->assertTrue($shoe->usesEffect());
+        $this->assertEquals($effectFit, $shoe->fit);
+    }
+
+    public function test_the_feet_preview_has_deepar_draw_a_built_effect(): void
+    {
+        config(['services.deepar.license_key' => 'test-license']);
+        $submission = $this->submissionWithFiles();
+        $effectFit = ['scale' => 92.593, 'rotation' => [0, -90, 0], 'position' => [0.7, -1.82, -4.6]];
+        $submission->update(['effect_path' => 'effects/generated/leather-loafer.deepar', 'preview_fit' => ['fit' => $effectFit, 'leg_mask' => true]]);
+        Storage::disk('shoe_assets')->put('effects/generated/leather-loafer.deepar', 'deepar-effect-bytes');
+
+        $this->actingAs($this->admin)->withoutVite()->get(route('admin.shoe-submissions.preview', $submission))
+            ->assertOk()
+            ->assertViewHas('preview', fn (array $preview) => $preview['effect'] === asset('effects/generated/leather-loafer.deepar')
+                && $preview['effectError'] === null
+                && $preview['fit'] === $effectFit);
+    }
+
+    public function test_the_feet_preview_says_why_a_shoe_has_no_effect(): void
+    {
+        config(['services.deepar.license_key' => 'test-license']);
+        $submission = $this->submissionWithFiles();
+        $submission->update(['effect_error' => 'The effect could not be built: the GLB has 3 materials.']);
+
+        $this->actingAs($this->admin)->withoutVite()->get(route('admin.shoe-submissions.preview', $submission))
+            ->assertOk()
+            ->assertViewHas('preview', fn (array $preview) => $preview['effect'] === null
+                && $preview['effectError'] === 'The effect could not be built: the GLB has 3 materials.');
+    }
+
     public function test_approving_without_a_preview_fit_starts_from_the_default_fit_with_the_feet_inside(): void
     {
         $submission = $this->submissionWithFiles();

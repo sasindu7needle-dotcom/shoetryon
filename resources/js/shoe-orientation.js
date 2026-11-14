@@ -105,6 +105,27 @@ function flatEndScore({ points, normals, area }, direction) {
     return ((flat / points.length) * area) / (first * second);
 }
 
+// How much surface near the model's far end in this direction faces that way:
+// a sole covers the whole footprint, a heel's back only a small patch.
+function facingCount({ points, normals }, direction) {
+    const { max, size } = extentAlong(points, direction);
+    const edge = max - 0.1 * size;
+    let count = 0;
+    for (let i = 0; i < points.length; i++) {
+        if (points[i].dot(direction) >= edge && normals[i].dot(direction) > 0.7) count++;
+    }
+    return count;
+}
+
+// glTF's up is +y, and Tripo and the sample shoes follow it. Shape alone is
+// not enough: on a smooth generated shoe the flat back of the heel scores as
+// flat as the sole, and a boot's side wall has more surface facing out than
+// its sole. So the sole stays at -y unless another end beats it on both
+// counts, flatness and twice the surface facing out (a model exported on its
+// side or upside down). Keep in step with scripts/build-deepar-effect.py.
+const GLTF_DOWN = new THREE.Vector3(0, -1, 0);
+const DOWN_OVERRIDE_RATIO = 2;
+
 /**
  * The model's down, toe and big-toe directions, each one of its ±x/±y/±z axes,
  * with how sure each guess is (0 = a coin toss).
@@ -113,12 +134,16 @@ function flatEndScore({ points, normals, area }, direction) {
  */
 export function detectShoeAxes(surface) {
     const { points } = surface;
-    // Down: the direction with the most flat surface at its end.
     const candidates = AXES.flatMap((axis) => [axis.clone(), axis.clone().negate()])
-        .map((direction) => ({ direction, score: flatEndScore(surface, direction) }))
-        .sort((first, second) => second.score - first.score);
-    const down = candidates[0].direction;
-    const downConfidence = candidates[0].score ? 1 - candidates[1].score / candidates[0].score : 0;
+        .map((direction) => ({ direction, flat: flatEndScore(surface, direction), facing: facingCount(surface, direction) }));
+    const gltf = candidates.find((candidate) => candidate.direction.equals(GLTF_DOWN));
+    const override = candidates
+        .filter((candidate) => candidate !== gltf && candidate.flat > gltf.flat && candidate.facing >= DOWN_OVERRIDE_RATIO * Math.max(gltf.facing, 1))
+        .sort((first, second) => second.flat - first.flat)[0];
+    const chosen = override ?? gltf;
+    const down = chosen.direction;
+    const runnerUp = Math.max(...candidates.filter((candidate) => candidate !== chosen).map((candidate) => candidate.facing));
+    const downConfidence = chosen.facing ? Math.max(0, 1 - runnerUp / chosen.facing) : 0;
 
     // Length: the longer of the two axes across the sole.
     const across = AXES.filter((axis) => Math.abs(axis.dot(down)) < 0.5)

@@ -25,6 +25,10 @@ php artisan migrate --force
 php artisan db:seed --class=ShoeCatalogSeeder --force
 # Adds shoes the n8n workflow committed to resources/shoes/*.json, and unhides the ones approved since.
 php artisan shopar:sync-shoes
+# Builds the DeepAR effect of shoes made from photos that don't have one yet.
+php artisan shopar:build-effect || echo "Some shoe effects could not be built; see the admin's shoe pages." >&2
+mkdir -p public/effects/generated
+chown -R www-data:www-data public/effects/generated database
 
 if [ -n "$ADMIN_USERNAME" ] && [ -n "$ADMIN_PASSWORD" ]; then
     php artisan shopar:admin "$ADMIN_USERNAME" --password="$ADMIN_PASSWORD"

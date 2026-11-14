@@ -16,8 +16,8 @@ class ShoeSubmissionReviewController extends Controller
     /**
      * Records the admin's verdict on Tripo's 3D model after previewing it on
      * their feet. An approved model joins the library straight away, hidden,
-     * worn as its GLB with the fit the admin set in the preview, so no DeepAR
-     * effect has to be built. A rejected one frees the shoe's id so it can be
+     * worn through the DeepAR effect built from its GLB (or as the GLB itself
+     * when that could not be built) with the preview's fit. A rejected one frees the shoe's id so it can be
      * sent again with better photos.
      */
     public function store(ReviewShoeSubmissionRequest $request, ShoeSubmission $submission): RedirectResponse
@@ -41,7 +41,7 @@ class ShoeSubmissionReviewController extends Controller
                     'name' => $submission->name,
                     'glb' => $submission->glb_path,
                     'thumb' => $submission->photo_path,
-                    'effect' => null,
+                    'effect' => $submission->effect_path,
                     'fit' => $submission->preview_fit['fit'] ?? Shoe::FEET_DEFAULT_FIT,
                     'leg_mask' => (bool) ($submission->preview_fit['leg_mask'] ?? true),
                     'is_visible' => false,

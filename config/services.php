@@ -30,6 +30,13 @@ return [
 
     'deepar' => [
         'license_key' => env('DEEPAR_LICENSE_KEY'),
+        // Builds a DeepAR effect from each GLB Tripo makes
+        // (scripts/build-deepar-effect.py --auto). Needs Python 3 with Pillow.
+        'effect_builder' => [
+            'python' => env('DEEPAR_EFFECT_PYTHON', PHP_OS_FAMILY === 'Windows' ? 'python' : 'python3'),
+            'template' => 'effects/shoes/street-runner.deepar',
+            'timeout' => (int) env('DEEPAR_EFFECT_TIMEOUT', 300),
+        ],
     ],
 
     /*

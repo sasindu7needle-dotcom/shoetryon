@@ -11,8 +11,10 @@ COPY public ./public
 RUN npm run build
 
 FROM php:8.4-apache
+# Python 3 with Pillow builds a DeepAR effect from each GLB Tripo makes
+# (scripts/build-deepar-effect.py --auto).
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git unzip libzip-dev \
+    && apt-get install -y --no-install-recommends git unzip libzip-dev python3 python3-pil \
     && docker-php-ext-install zip \
     && a2enmod rewrite headers \
     && rm -rf /var/lib/apt/lists/*

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\N8n;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\N8n\StoreShoeModelRequest;
+use App\Jobs\BuildShoeSubmissionEffect;
 use App\Models\ShoeSubmission;
 use App\ShoeSubmissionStatus;
 use Illuminate\Http\JsonResponse;
@@ -38,6 +39,8 @@ class ShoeSubmissionCallbackController extends Controller
             'status' => ShoeSubmissionStatus::ModelReady,
             'message' => 'The 3D model is ready. Preview it on your feet, then approve or reject it.',
         ]);
+
+        BuildShoeSubmissionEffect::dispatchAfterResponse($submission);
 
         return response()->json(['status' => $submission->status->value]);
     }

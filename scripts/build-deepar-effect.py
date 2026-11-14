@@ -21,7 +21,15 @@ Usage (needs Pillow: pip install pillow):
 shaft's inner wall and the GLB's tryOnFit occlusion sections. --set overrides a material
 uniform, e.g. --set u_specularIntensity=0.4 to stop a glossy finish looking like chrome
 when seen edge-on.
+
+--auto is for any GLB, such as one Tripo made from photos: its meshes are merged, its
+textures re-encoded as square WebP (flat defaults for missing maps), and the shoe is
+turned from its own shape so the sole is down, the toes +X and the big toe -Z (a left
+shoe is mirrored into a right one), scaled to AUTO_LENGTH_M and stood with the middle
+of its sole at the origin. The last line printed is then `FIT {json}`: the fit that
+puts it on DeepAR's foot (see config/shoes.php for what the values mean).
 """
+import bisect
 import io
 import json
 import math
@@ -29,6 +37,15 @@ import struct
 import sys
 
 from PIL import Image
+
+# --auto: the shoe's length in the effect (metres), the foot units one metre
+# becomes, and where the middle of the sole goes on DeepAR's right foot. A foot
+# is about 24 units long; the sample shoes fitted on phones are 23 to 26 units
+# long with their soles' middles at about (0.7, -1.82, -4.6) (config/shoes.php).
+AUTO_LENGTH_M = 0.27
+AUTO_FOOT_LENGTH = 25.0
+AUTO_SEAT = [0.7, -1.82, -4.6]
+AUTO_TEXTURE_MAX = 1024
 
 
 # Schema-less FlatBuffer access, enough to walk the .deepar tables.
@@ -404,8 +421,394 @@ def walk_nodes(fb, t, out):
             walk_nodes(fb, c, out)
 
 
-def build(template_path, glb_path, out_path, prefix, with_leg_occluder=False, uniforms=None):
-    positions, normals, uvs, indices, textures, factors = load_glb(glb_path)
+# ---- --auto: any GLB, stood on the foot from its own shape ---------------------------
+
+class AutoError(Exception):
+    """Why --auto cannot build an effect from a GLB, in words for the admin."""
+
+
+COMPONENTS = {5120: ('b', 1, 127.0), 5121: ('B', 1, 255.0), 5122: ('h', 2, 32767.0),
+              5123: ('H', 2, 65535.0), 5125: ('I', 4, None), 5126: ('f', 4, None)}
+WIDTHS = {'SCALAR': 1, 'VEC2': 2, 'VEC3': 3, 'VEC4': 4}
+SUPPORTED_REQUIRED_EXTENSIONS = {'EXT_texture_webp'}
+
+
+def read_any(path):
+    """Like read(), for GLBs from anywhere: normalized accessors and any matrix nodes."""
+    d = open(path, 'rb').read()
+    if d[:4] != b'glTF':
+        raise AutoError('the file is not a binary glTF (.glb)')
+    length = struct.unpack_from('<I', d, 12)[0]
+    j = json.loads(d[20:20 + length])
+    unsupported = set(j.get('extensionsRequired', [])) - SUPPORTED_REQUIRED_EXTENSIONS
+    if unsupported:
+        raise AutoError('the GLB needs ' + ', '.join(sorted(unsupported)) + ' (compressed meshes are not supported)')
+    bin_off = 20 + length + 8
+
+    def accessor(i):
+        a = j['accessors'][i]
+        if 'sparse' in a or 'bufferView' not in a:
+            raise AutoError('the GLB uses sparse accessors')
+        fmt, size, norm = COMPONENTS[a['componentType']]
+        width = WIDTHS[a['type']]
+        view = j['bufferViews'][a['bufferView']]
+        start = bin_off + view.get('byteOffset', 0) + a.get('byteOffset', 0)
+        stride = view.get('byteStride') or size * width
+        unpack = struct.Struct('<%d%s' % (width, fmt)).unpack_from
+        values = [unpack(d, start + k * stride) for k in range(a['count'])]
+        if a.get('normalized') and norm:
+            values = [tuple(max(v / norm, -1.0) for v in value) for value in values]
+        return values
+
+    def image(i):
+        im = j['images'][i]
+        if 'bufferView' not in im:
+            raise AutoError('the GLB\'s textures are not embedded in it')
+        view = j['bufferViews'][im['bufferView']]
+        start = bin_off + view.get('byteOffset', 0)
+        return d[start:start + view['byteLength']]
+
+    return j, accessor, image
+
+
+def any_node_matrix(n):
+    if 'matrix' in n:
+        m = n['matrix']  # column-major
+        return [[m[c * 4 + r] for c in range(4)] for r in range(4)]
+    return node_matrix(n)
+
+
+def sub(a, b):
+    return [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
+
+
+def cross(a, b):
+    return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
+
+
+def dot(a, b):
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+
+
+def neg(a):
+    return [-a[0], -a[1], -a[2]]
+
+
+def cofactors(m):
+    """Cofactor matrix: the inverse transpose times the determinant, for normals."""
+    return [[(m[(i + 1) % 3][(k + 1) % 3] * m[(i + 2) % 3][(k + 2) % 3]
+              - m[(i + 1) % 3][(k + 2) % 3] * m[(i + 2) % 3][(k + 1) % 3]) for k in range(3)] for i in range(3)]
+
+
+def vertex_normals(points, tri):
+    total = [[0.0, 0.0, 0.0] for _ in points]
+    for f in range(0, len(tri), 3):
+        a, b, c = (points[i] for i in tri[f:f + 3])
+        n = cross(sub(b, a), sub(c, a))
+        for i in tri[f:f + 3]:
+            total[i] = [total[i][q] + n[q] for q in range(3)]
+    return [normalize(n) if any(n) else [0.0, 1.0, 0.0] for n in total]
+
+
+def square_webp(raw, fill, lossless):
+    """A texture as a square, power-of-two WebP no bigger than AUTO_TEXTURE_MAX, or a
+    small flat one of `fill` when the GLB has none."""
+    if raw is None:
+        img = Image.new('RGB', (4, 4), fill)
+    else:
+        try:
+            img = Image.open(io.BytesIO(raw))
+            img.load()
+        except Exception as error:
+            raise AutoError(f'a texture could not be read ({error})')
+        img = img.convert('RGBA' if 'A' in img.getbands() and not lossless else 'RGB')
+    size = max(4, min(AUTO_TEXTURE_MAX, 1 << max(0, round(math.log2(max(img.size))))))
+    if img.size != (size, size):
+        img = img.resize((size, size), Image.Resampling.LANCZOS)
+    return encode_webp(img, lossless)
+
+
+def load_any_glb(path):
+    """load_glb() for any GLB: every triangle mesh in the scene, merged (they must share
+    one material), with missing normals worked out and missing maps made flat."""
+    j, accessor, image = read_any(path)
+    parts = []
+
+    def walk(i, m):
+        n = j['nodes'][i]
+        m = mul(m, any_node_matrix(n))
+        if 'mesh' in n:
+            parts.extend((prim, m) for prim in j['meshes'][n['mesh']]['primitives']
+                         if prim.get('mode', 4) == 4 and 'POSITION' in prim['attributes'])
+        for c in n.get('children', []):
+            walk(c, m)
+
+    identity = [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
+    if j.get('scenes'):
+        roots = j['scenes'][j.get('scene', 0)]['nodes']
+    else:
+        children = {c for n in j.get('nodes', []) for c in n.get('children', [])}
+        roots = [i for i in range(len(j.get('nodes', []))) if i not in children]
+    for root in roots:
+        walk(root, identity)
+    if not parts:
+        raise AutoError('the GLB has no triangle mesh')
+    materials = {prim.get('material') for prim, _ in parts}
+    if len(materials) > 1:
+        raise AutoError(f'the GLB has {len(materials)} materials; only one is supported')
+
+    positions, normals, uvs, indices = [], [], [], []
+    for prim, m in parts:
+        attributes = prim['attributes']
+        local = accessor(attributes['POSITION'])
+        base = len(positions)
+        placed = [[sum(m[i][k] * p[k] for k in range(3)) + m[i][3] for i in range(3)] for p in local]
+        tri = [v[0] for v in accessor(prim['indices'])] if 'indices' in prim else list(range(len(local)))
+        tri = tri[:len(tri) - len(tri) % 3]
+        linear = [[m[i][k] for k in range(3)] for i in range(3)]
+        cof = cofactors(linear)
+        det = sum(linear[0][k] * cof[0][k] for k in range(3))
+        if det < 0:
+            # A mirroring node turns the faces inside out; turn them back.
+            for f in range(0, len(tri), 3):
+                tri[f + 1], tri[f + 2] = tri[f + 2], tri[f + 1]
+        sign = -1.0 if det < 0 else 1.0
+        if 'NORMAL' in attributes:
+            normals += [normalize([sign * sum(cof[i][k] * n[k] for k in range(3)) for i in range(3)])
+                        for n in accessor(attributes['NORMAL'])]
+        else:
+            normals += vertex_normals(placed, tri)
+        uvs += [list(uv) for uv in accessor(attributes['TEXCOORD_0'])] if 'TEXCOORD_0' in attributes \
+            else [[0.0, 0.0] for _ in local]
+        positions += placed
+        indices += [base + i for i in tri]
+
+    material_index = next(iter(materials))
+    material = j['materials'][material_index] if material_index is not None else {}
+    pbr = material.get('pbrMetallicRoughness', {})
+
+    def texture(ref):
+        if not ref:
+            return None
+        tex = j['textures'][ref['index']]
+        source = tex.get('extensions', {}).get('EXT_texture_webp', {}).get('source', tex.get('source'))
+        return None if source is None else image(source)
+
+    textures = {
+        'albedo': square_webp(texture(pbr.get('baseColorTexture')), (255, 255, 255), False),
+        'normal': square_webp(texture(material.get('normalTexture')), (128, 128, 255), True),
+        'metal_roughness': square_webp(texture(pbr.get('metallicRoughnessTexture')), (255, 255, 255), True),
+    }
+    factors = {
+        'diffuse': pbr.get('baseColorFactor', [1, 1, 1, 1]),
+        'metalness': pbr.get('metallicFactor', 1.0),
+        'roughness': pbr.get('roughnessFactor', 1.0),
+        'normal_scale': material.get('normalTexture', {}).get('scale', 1.0),
+    }
+    return positions, normals, uvs, indices, textures, factors
+
+
+def weld(positions, normals, uvs, indices):
+    """Merges vertices that are the same (non-indexed meshes repeat every corner) and
+    drops unused ones, so more models fit DeepAR's 16-bit indices."""
+    keys, cache = {}, {}
+    out = ([], [], [])
+    out_indices = []
+    for i in indices:
+        k = cache.get(i)
+        if k is None:
+            key = (tuple(round(v, 6) for v in positions[i]) + tuple(round(v, 3) for v in normals[i])
+                   + tuple(round(v, 5) for v in uvs[i]))
+            k = keys.get(key)
+            if k is None:
+                k = keys[key] = len(out[0])
+                out[0].append(positions[i])
+                out[1].append(normals[i])
+                out[2].append(uvs[i])
+            cache[i] = k
+        out_indices.append(k)
+    return out[0], out[1], out[2], out_indices
+
+
+# A port of resources/js/shoe-orientation.js (keep the two the same): which of the
+# model's six axis directions are down, the toes and the big toe, from its shape.
+AUTO_SAMPLES = 24000
+AXES = ([1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0])
+
+
+def sample_surface(positions, indices, count=AUTO_SAMPLES):
+    """Points spread evenly over the surface by area, with their faces' normals."""
+    tris, cumulative, total = [], [], 0.0
+    for f in range(0, len(indices), 3):
+        a, b, c = (positions[i] for i in indices[f:f + 3])
+        n = cross(sub(c, b), sub(a, b))
+        area = math.sqrt(dot(n, n)) / 2
+        if not area > 0:
+            continue
+        total += area
+        tris.append((a, b, c, [x / (2 * area) for x in n]))
+        cumulative.append(total)
+    points, normals = [], []
+    if not tris:
+        return points, normals, 0.0
+    seed = 12345
+
+    def random():
+        nonlocal seed
+        seed = (seed * 1664525 + 1013904223) & 0xFFFFFFFF
+        return seed / 4294967296
+
+    for _ in range(count):
+        k = min(bisect.bisect_left(cumulative, random() * total), len(tris) - 1)
+        u, v = random(), random()
+        if u + v > 1:
+            u, v = 1 - u, 1 - v
+        a, b, c, n = tris[k]
+        points.append([a[q] + (b[q] - a[q]) * u + (c[q] - a[q]) * v for q in range(3)])
+        normals.append(n)
+    return points, normals, total
+
+
+def extent(points, axis):
+    values = [dot(p, axis) for p in points]
+    return min(values), max(values), max(values) - min(values)
+
+
+def flat_end_score(points, normals, area, direction):
+    _, high, size = extent(points, direction)
+    first, second = (extent(points, axis)[2] for axis in AXES if abs(dot(axis, direction)) < 0.5)
+    if not size or not first or not second:
+        return 0.0
+    edge = high - 0.06 * size
+    flat = sum(1 for p, n in zip(points, normals) if dot(p, direction) >= edge and abs(dot(n, direction)) > 0.85)
+    return flat / len(points) * area / (first * second)
+
+
+def facing_count(points, normals, direction):
+    """How much surface near the model's far end in this direction faces that way: a
+    sole covers the whole footprint, a heel's back only a small patch."""
+    _, high, size = extent(points, direction)
+    edge = high - 0.1 * size
+    return sum(1 for p, n in zip(points, normals) if dot(p, direction) >= edge and dot(n, direction) > 0.7)
+
+
+# glTF's up is +Y, and Tripo and the sample shoes follow it. Shape alone is not
+# enough: on a smooth generated shoe the flat back of the heel scores as flat as
+# the sole, and a boot's side wall has more surface facing out than its sole. So
+# the sole stays at -Y unless another end beats it on both counts, flatness and
+# twice the surface facing out (a model exported on its side or upside down).
+GLTF_DOWN = [0.0, -1.0, 0.0]
+DOWN_OVERRIDE_RATIO = 2.0
+
+
+def detect_axes(points, normals, area):
+    candidates = [[d, flat_end_score(points, normals, area, d), facing_count(points, normals, d)]
+                  for axis in AXES for d in (list(axis), neg(axis))]
+    _, gltf_flat, gltf_facing = next(c for c in candidates if c[0] == GLTF_DOWN)
+    overrides = sorted((c for c in candidates if c[0] != GLTF_DOWN and c[1] > gltf_flat
+                        and c[2] >= DOWN_OVERRIDE_RATIO * max(gltf_facing, 1)), key=lambda c: -c[1])
+    down, _, down_facing = overrides[0] if overrides else (GLTF_DOWN, gltf_flat, gltf_facing)
+    runner_up = max(c[2] for c in candidates if c[0] != down)
+    down_confidence = max(0.0, 1 - runner_up / down_facing) if down_facing else 0.0
+
+    across = sorted(([axis, extent(points, axis)[2]] for axis in AXES if abs(dot(axis, down)) < 0.5), key=lambda c: -c[1])
+    length_axis, width_axis = list(across[0][0]), list(across[1][0])
+
+    height_low, height_high, height_size = extent(points, down)
+    full_low, full_high, full_size = extent(points, length_axis)
+    sole_depth = min(0.25 * height_size, 0.1 * full_size)
+    sole = [p for p in points if dot(p, down) >= height_high - sole_depth]
+    length_low, _, length_size = extent(sole, length_axis)
+    width_low, width_high, width_size = extent(sole, width_axis)
+    midline = (width_low + width_high) / 2
+    count = 20
+    bins = [[math.inf, -math.inf, 0.0, 0] for _ in range(count)]
+    for p in sole:
+        along = (dot(p, length_axis) - length_low) / (length_size or 1)
+        b = bins[min(count - 1, max(0, math.floor(along * count)))]
+        sideways = dot(p, width_axis)
+        b[0], b[1] = min(b[0], sideways), max(b[1], sideways)
+        b[2] += sideways - midline
+        b[3] += 1
+
+    def widest(start, end):
+        return max((b[1] - b[0]) if b[3] else 0.0 for b in bins[start:end])
+
+    widest_high, widest_low = widest(count // 2, count - 1), widest(1, count // 2)
+    width_lean = (widest_high - widest_low) / max(widest_high, widest_low, 1e-9)
+    top = [p for p in points if dot(p, down) <= height_low + 0.3 * height_size]
+    top_middle = sum(dot(p, length_axis) for p in top) / (len(top) or 1)
+    collar_lean = (full_low + full_high) / 2 - top_middle
+    collar_confidence = abs(collar_lean) / (full_size or 1)
+    is_width_clear = abs(width_lean) >= 0.05 or abs(width_lean) >= collar_confidence
+    toe_lean = width_lean if is_width_clear else collar_lean
+    toe = length_axis if toe_lean >= 0 else neg(length_axis)
+    toe_confidence = abs(width_lean) if is_width_clear else collar_confidence
+
+    is_toe_high = dot(toe, length_axis) > 0
+
+    def region(start, end):
+        start, end = (start, end) if is_toe_high else (count - end, count - start)
+        picked = bins[start:end]
+        total = sum(b[3] for b in picked)
+        return sum(b[2] for b in picked) / total if total else 0.0
+
+    lean = (region(16, 20) - region(7, 11)) / (width_size or 1)
+    big_toe = width_axis if lean >= 0 else neg(width_axis)
+    is_left = dot(big_toe, cross(neg(down), toe)) < 0
+    return {'down': down, 'toe': toe, 'big_toe': big_toe, 'is_left': is_left,
+            'confidence': {'down': down_confidence, 'toe': toe_confidence, 'side': abs(lean)}}
+
+
+def auto_orient(positions, normals, indices):
+    """Turns the shoe to toes +X, up +Y, big toe -Z (a right shoe; a clear left shoe is
+    mirrored), scales it to AUTO_LENGTH_M and puts the middle of its sole at the origin."""
+    points, point_normals, area = sample_surface(positions, indices)
+    if not points:
+        raise AutoError('the mesh has no surface')
+    axes = detect_axes(points, point_normals, area)
+    up, toe = neg(axes['down']), axes['toe']
+    right_big_toe = cross(up, toe)
+    mirror = axes['is_left'] and axes['confidence']['side'] >= 0.03
+    big_toe = neg(right_big_toe) if mirror else right_big_toe
+    rows = (toe, up, neg(big_toe))
+    positions = [[dot(r, p) for r in rows] for p in positions]
+    normals = [[dot(r, n) for r in rows] for n in normals]
+    indices = list(indices)
+    if mirror:
+        for f in range(0, len(indices), 3):
+            indices[f + 1], indices[f + 2] = indices[f + 2], indices[f + 1]
+
+    low = [min(p[q] for p in positions) for q in range(3)]
+    high = [max(p[q] for p in positions) for q in range(3)]
+    length = high[0] - low[0]
+    if not length > 0:
+        raise AutoError('the model has no length')
+    scale = AUTO_LENGTH_M / length
+    middle = [(low[0] + high[0]) / 2, low[1], (low[2] + high[2]) / 2]
+    positions = [[(p[q] - middle[q]) * scale for q in range(3)] for p in positions]
+
+    names = lambda v: ''.join(('+' if c > 0 else '-') + 'xyz'[q] for q, c in enumerate(v) if round(c))
+    fit = {'scale': round(AUTO_FOOT_LENGTH / AUTO_LENGTH_M, 3), 'rotation': [0, -90, 0], 'position': list(AUTO_SEAT)}
+    orientation = {
+        'down': names(axes['down']), 'toe': names(axes['toe']), 'big_toe': names(axes['big_toe']),
+        'shoe': 'left (mirrored)' if mirror else ('left' if axes['is_left'] else 'right'),
+        'confidence': {k: round(v, 3) for k, v in axes['confidence'].items()},
+        'size_m': [round((high[q] - low[q]) * scale, 4) for q in range(3)],
+    }
+    return positions, normals, indices, fit, orientation
+
+
+def build(template_path, glb_path, out_path, prefix, with_leg_occluder=False, uniforms=None, auto=False):
+    if auto:
+        positions, normals, uvs, indices, textures, factors = load_any_glb(glb_path)
+        positions, normals, uvs, indices = weld(positions, normals, uvs, indices)
+        if len(positions) >= 65536:
+            raise AutoError(f'the model has {len(positions)} vertices; DeepAR takes at most 65535. '
+                            'Ask Tripo for fewer faces (face_limit, e.g. 20000).')
+        positions, normals, indices, fit, orientation = auto_orient(positions, normals, indices)
+    else:
+        positions, normals, uvs, indices, textures, factors = load_glb(glb_path)
     assert len(positions) < 65536, 'u16 indices only'
     tans = tangents(positions, normals, uvs, indices)
     vertices = b''.join(VERTEX.pack(*p, 0, 0, 0, 0, *uv, 0.0, 0.0, *n, *t)
@@ -551,10 +954,16 @@ def build(template_path, glb_path, out_path, prefix, with_leg_occluder=False, un
 
     open(out_path, 'wb').write(p.out)
     print(f'{out_path}: {len(positions)} vertices, {len(indices) // 3} triangles, {len(p.out)} bytes')
+    if auto:
+        print('FIT ' + json.dumps({'fit': fit, 'orientation': orientation}))
 
 
 if __name__ == '__main__':
     argv = sys.argv[1:]
     sets = dict(argv[i + 1].split('=', 1) for i, a in enumerate(argv) if a == '--set')
     args = [a for i, a in enumerate(argv) if not a.startswith('--') and (i == 0 or argv[i - 1] != '--set')]
-    build(*args[:4], with_leg_occluder='--leg-occluder' in argv, uniforms=sets)
+    try:
+        build(*args[:4], with_leg_occluder='--leg-occluder' in argv, uniforms=sets, auto='--auto' in argv)
+    except AutoError as error:
+        print(f'ERROR {error}', file=sys.stderr)
+        sys.exit(2)

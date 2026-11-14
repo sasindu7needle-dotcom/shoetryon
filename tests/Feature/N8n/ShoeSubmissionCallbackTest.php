@@ -2,10 +2,12 @@
 
 namespace Tests\Feature\N8n;
 
+use App\Jobs\BuildShoeSubmissionEffect;
 use App\Models\ShoeSubmission;
 use App\ShoeSubmissionStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -20,6 +22,7 @@ class ShoeSubmissionCallbackTest extends TestCase
         parent::setUp();
 
         Storage::fake('shoe_assets');
+        Bus::fake([BuildShoeSubmissionEffect::class]);
         config(['services.n8n.shopar_key' => self::KEY]);
     }
 
@@ -43,6 +46,7 @@ class ShoeSubmissionCallbackTest extends TestCase
         $this->assertSame('models/generated/leather-loafer.glb', $submission->glb_path);
         $this->assertSame('task-123', $submission->tripo_task_id);
         Storage::disk('shoe_assets')->assertExists('models/generated/leather-loafer.glb');
+        Bus::assertDispatchedAfterResponse(BuildShoeSubmissionEffect::class, fn (BuildShoeSubmissionEffect $job) => $job->submission->is($submission));
     }
 
     public function test_a_file_that_is_not_a_glb_is_refused(): void

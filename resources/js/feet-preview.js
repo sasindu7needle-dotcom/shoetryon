@@ -1,12 +1,15 @@
 import * as deepar from 'deepar';
+import { applyFit } from './deepar-fit.js';
 import { DEFAULT_FIT, FeetRenderer, startFootTrackingOnly } from './feet-renderer.js';
 
 // The admin's "preview on my feet" page: Tripo's GLB on the tracked feet,
-// before the shoe is approved. The shoe is fitted automatically (turned from
-// its shape so the sole is down and the toes forward, and stood on each foot's
-// sole, see feet-renderer.js); that fit is saved to the
-// submission and becomes the shoe's starting fit. A photo of the try-on can
-// be sent to Claude, whose better fit replaces the automatic one.
+// before the shoe is approved. Normally DeepAR draws it through the effect
+// the server built from the GLB (scripts/build-deepar-effect.py --auto turns
+// the model sole down and toes forward from its shape and reports the fit),
+// exactly as the try-on will. When that effect could not be built, three.js
+// draws the GLB on the feet DeepAR tracks (see feet-renderer.js). The fit
+// becomes the shoe's starting fit. A photo of the try-on can be sent to
+// Claude, whose better fit replaces the automatic one.
 
 const config = window.FEET_PREVIEW;
 const stage = document.getElementById('feet-stage');
@@ -21,10 +24,25 @@ const legMaskButton = document.querySelector('[data-leg-mask]');
 const reload = { label: 'Reload', run: () => location.reload() };
 const feetRenderer = new FeetRenderer(stage, document.getElementById('feet-shoes'));
 
-let fit = config.isClaudeFit
+// DeepAR draws the shoe from its own effect; otherwise three.js draws the GLB.
+const usesEffect = Boolean(config.effect);
+let ar = null;
+
+// An effect's fit is the one the server worked out when it built the effect
+// (or Claude's), never the GLB renderer's.
+let fit = config.isClaudeFit || usesEffect
     ? structuredClone(config.fit)
     : { scale: DEFAULT_FIT.scale, rotation: [...DEFAULT_FIT.rotation], position: [...DEFAULT_FIT.position] };
 let legMask = config.legMask;
+
+// Puts the current fit on the shoe, whichever way it is drawn.
+function showFit() {
+    if (usesEffect) {
+        if (ar) applyFit(ar, fit);
+    } else {
+        feetRenderer.setFit(fit, legMask);
+    }
+}
 
 function showStatus(message, { isBusy = true, action = null } = {}) {
     status.hidden = false;
@@ -67,7 +85,8 @@ async function save() {
 // ---- controls ---------------------------------------------------------------------
 
 function describeFit() {
-    return config.isClaudeFit ? 'Using the fit Claude suggested.' : 'Fitted automatically to your feet.';
+    if (config.isClaudeFit) return 'Using the fit Claude suggested.';
+    return usesEffect ? 'Fitted automatically from the shoe\'s shape.' : 'Fitted automatically to your feet.';
 }
 
 // "Feet inside" hides the shoe's footbed and collar where the wearer's foot
@@ -79,11 +98,16 @@ function showLegMaskState() {
 
 legMaskButton.addEventListener('click', () => {
     legMask = !legMask;
-    feetRenderer.setFit(fit, legMask);
+    showFit();
     showLegMaskState();
     scheduleSave();
 });
 showLegMaskState();
+// An effect has DeepAR's own foot occluders.
+legMaskButton.hidden = usesEffect;
+if (config.effectError) {
+    savedNote.textContent = `Drawn without a DeepAR effect: ${config.effectError}`;
+}
 
 // A fit saved by hand before the shoe was fitted automatically is replaced;
 // a fit Claude answered with is kept.
@@ -122,8 +146,20 @@ function toBlob(canvas, quality) {
     return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
 }
 
+// DeepAR's own frame (camera and shoes) when it draws the shoe.
+async function effectSnapshot() {
+    const image = new Image();
+    image.src = await ar.takeScreenshot();
+    await image.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    canvas.getContext('2d').drawImage(image, 0, 0);
+    return canvas;
+}
+
 photoButton.addEventListener('click', async () => {
-    const canvas = feetRenderer.snapshot();
+    const canvas = usesEffect ? await effectSnapshot() : feetRenderer.snapshot();
     let blob = await toBlob(canvas, 0.9);
     if (blob && blob.size > config.maxPhotoBytes) {
         blob = await toBlob(canvas, 0.6);
@@ -194,7 +230,7 @@ function watchClaude(roundId = null) {
                 if (round.status === 'applied' && round.fit) {
                     fit = structuredClone(round.fit);
                     config.isClaudeFit = true;
-                    feetRenderer.setFit(fit, legMask);
+                    showFit();
                     savedNote.textContent = `Claude's new fit is on${round.message ? `: ${round.message}` : '.'}`;
                 } else {
                     savedNote.textContent = round.status === 'no_change'
@@ -262,7 +298,8 @@ function startDebugReadout(getFeet) {
                 return `${side} raw: ${data.detected ? 'detected' : 'not detected'} pos (${numbers(data.position)}) scale (${numbers(data.scale)}) rot (${numbers(data.rotation)})`;
             })
             : ['no foot data from DeepAR yet'];
-        readout.textContent = [...raw, ...feetRenderer.describe()].join('\n');
+        const drawnBy = usesEffect ? 'shoe drawn by its DeepAR effect' : `shoe drawn by three.js${config.effectError ? ` (no effect: ${config.effectError})` : ''}`;
+        readout.textContent = [drawnBy, ...raw, ...feetRenderer.describe()].join('\n');
     }, 400);
 }
 
@@ -273,7 +310,7 @@ async function main() {
         showStatus('Set DEEPAR_LICENSE_KEY in the environment, then reload.', { isBusy: false });
         return;
     }
-    if (!config.trackerEffect) {
+    if (!usesEffect && !config.trackerEffect) {
         showStatus('Foot tracking needs a shoe effect (.deepar) on the server, and none was found. Upload one to a shoe, then reload.', { isBusy: false });
         return;
     }
@@ -285,11 +322,13 @@ async function main() {
     const cameraRequest = openCamera();
     cameraRequest.catch(() => {});
 
-    showStatus('Loading the 3D model…');
-    await feetRenderer.show(config.modelUrl, fit, legMask);
+    if (!usesEffect) {
+        showStatus('Loading the 3D model…');
+        await feetRenderer.show(config.modelUrl, fit, legMask);
+    }
 
     showStatus('Starting foot tracking…');
-    const ar = await deepar.initialize({
+    ar = await deepar.initialize({
         licenseKey: config.licenseKey,
         previewElement: stage,
         rootPath: config.rootPath,
@@ -316,7 +355,13 @@ async function main() {
         }
     };
     ar.initializeFootTracking();
-    await startFootTrackingOnly(ar, config.trackerEffect);
+    if (usesEffect) {
+        showStatus('Loading the 3D model…');
+        await ar.switchEffect(config.effect, { trackingInit: { foot: true } });
+        applyFit(ar, fit);
+    } else {
+        await startFootTrackingOnly(ar, config.trackerEffect);
+    }
 
     showStatus('Starting camera… Allow camera access if your browser asks.');
     let stream;

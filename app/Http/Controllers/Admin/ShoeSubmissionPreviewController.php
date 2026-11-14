@@ -19,8 +19,9 @@ class ShoeSubmissionPreviewController extends Controller
     /**
      * The phone camera view that puts Tripo's GLB on the admin's tracked
      * feet, so the 3D model can be judged on a real foot before it is
-     * approved. It needs no DeepAR effect of its own: DeepAR only tracks the
-     * feet and three.js draws the GLB on them.
+     * approved. DeepAR draws it through the effect built from the GLB; when
+     * that could not be built, DeepAR only tracks the feet and three.js draws
+     * the GLB on them.
      */
     public function show(ShoeSubmission $submission): View
     {
@@ -31,6 +32,7 @@ class ShoeSubmissionPreviewController extends Controller
         );
 
         $isAwaitingReview = $submission->status === ShoeSubmissionStatus::ModelReady;
+        $hasEffect = $submission->effect_path !== null && Storage::disk('shoe_assets')->exists($submission->effect_path);
         $fit = $submission->preview_fit['fit'] ?? Shoe::FEET_DEFAULT_FIT;
         $latestRound = $submission->fitRounds()->latest('id')->first();
         $canAskClaude = $isAwaitingReview && FitRoundWorkflow::isConfigured();
@@ -44,6 +46,10 @@ class ShoeSubmissionPreviewController extends Controller
                 'rootPath' => asset('vendor/deepar').'/',
                 'modelUrl' => route('admin.shoe-submissions.files.show', [$submission, 'model']),
                 'trackerEffect' => Shoe::trackerEffectUrl(),
+                // DeepAR draws the shoe from the effect built from its GLB;
+                // without one, three.js draws the GLB on the tracked feet.
+                'effect' => $hasEffect ? asset($submission->effect_path) : null,
+                'effectError' => $hasEffect ? null : $submission->effect_error,
                 'fit' => $fit,
                 // A fit Claude answered with is kept; any other saved fit is
                 // replaced by the automatic one.

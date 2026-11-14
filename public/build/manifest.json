@@ -3,8 +3,8 @@
     "file": "assets/RoomEnvironment-CSDGHJXA.js",
     "name": "RoomEnvironment"
   },
-  "_feet-renderer--sqGLfRf.js": {
-    "file": "assets/feet-renderer--sqGLfRf.js",
+  "_feet-renderer-B-VTevq6.js": {
+    "file": "assets/feet-renderer-B-VTevq6.js",
     "name": "feet-renderer",
     "imports": [
       "_RoomEnvironment-CSDGHJXA.js"
@@ -70,12 +70,12 @@
     "isEntry": true
   },
   "resources/js/feet-preview.js": {
-    "file": "assets/feet-preview-B80ytc_0.js",
+    "file": "assets/feet-preview-ByAYwoRi.js",
     "name": "feet-preview",
     "src": "resources/js/feet-preview.js",
     "isEntry": true,
     "imports": [
-      "_feet-renderer--sqGLfRf.js"
+      "_feet-renderer-B-VTevq6.js"
     ]
   },
   "resources/js/landing.js": {
@@ -97,12 +97,12 @@
     ]
   },
   "resources/js/tryon.js": {
-    "file": "assets/tryon-DU4vSqmu.js",
+    "file": "assets/tryon-D7I4nZX-.js",
     "name": "tryon",
     "src": "resources/js/tryon.js",
     "isEntry": true,
     "imports": [
-      "_feet-renderer--sqGLfRf.js"
+      "_feet-renderer-B-VTevq6.js"
     ]
   }
 }

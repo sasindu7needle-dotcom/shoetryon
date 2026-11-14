@@ -49,7 +49,7 @@ class ShoeSubmissionFitRoundController extends Controller
             'id' => $submission->slug,
             'name' => $submission->name,
             'fit' => $fit,
-        ], false, $request->file('photo'));
+        ], $submission->effect_path !== null, $request->file('photo'));
 
         if ($failure !== null) {
             $round->update(['status' => ShoeFitRoundStatus::Failed, 'message' => $failure]);

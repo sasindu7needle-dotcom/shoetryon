@@ -17,7 +17,7 @@ class SaveFeetFitRequest extends FormRequest
     {
         return [
             'fit' => ['required', 'array'],
-            'fit.scale' => ['required', 'numeric', 'gt:0', 'max:10'],
+            'fit.scale' => ['required', 'numeric', 'gt:0', 'max:1000'],
             'fit.rotation' => ['required', 'array:0,1,2', 'size:3'],
             'fit.rotation.*' => ['required', 'numeric', 'between:-360,360'],
             'fit.position' => ['required', 'array:0,1,2', 'size:3'],
