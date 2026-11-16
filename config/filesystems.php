@@ -55,6 +55,9 @@ return [
         'shoe_assets' => [
             'driver' => 'local',
             'root' => public_path(),
+            // Files and folders it makes must be readable by the web server, which on shared hosting isn't their owner.
+            'visibility' => 'public',
+            'directory_visibility' => 'public',
             'throw' => true,
             'report' => false,
         ],

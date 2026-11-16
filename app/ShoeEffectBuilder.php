@@ -67,6 +67,9 @@ class ShoeEffectBuilder
             return $this->fail($submission, $this->reasonFrom($result->errorOutput()));
         }
 
+        // Python writes the file with the web server's umask, which on shared hosting can leave it unreadable to the web.
+        $disk->setVisibility($effectPath, 'public');
+
         $previewFit = [
             'fit' => $answer['fit'],
             'leg_mask' => (bool) ($submission->preview_fit['leg_mask'] ?? true),
