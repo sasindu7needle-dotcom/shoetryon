@@ -5,6 +5,7 @@ namespace Tests\Feature\Admin;
 use App\Models\Shoe;
 use App\Models\ShoeSubmission;
 use App\ShoeEffectBuilder;
+use App\ShoeSide;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Facades\Process;
@@ -73,6 +74,24 @@ class ShoeEffectBuilderTest extends TestCase
         Process::assertRan(fn (PendingProcess $process) => in_array('--auto', $process->command, true)
             && in_array(public_path('effects/shoes/street-runner.deepar'), $process->command, true)
             && in_array(Storage::disk('shoe_assets')->path('models/generated/leather-loafer.glb'), $process->command, true));
+    }
+
+    public function test_the_side_the_admin_chose_is_passed_to_the_script(): void
+    {
+        $this->fakeScript();
+
+        app(ShoeEffectBuilder::class)->build($this->submissionWithGlb(['shoe_side' => ShoeSide::Left]));
+
+        Process::assertRan(fn (PendingProcess $process) => in_array('--side=left', $process->command, true));
+    }
+
+    public function test_a_shoe_sent_before_sides_were_chosen_lets_the_script_guess(): void
+    {
+        $this->fakeScript();
+
+        app(ShoeEffectBuilder::class)->build($this->submissionWithGlb(['shoe_side' => null]));
+
+        Process::assertRan(fn (PendingProcess $process) => collect($process->command)->doesntContain(fn (string $part) => str_starts_with($part, '--side')));
     }
 
     public function test_a_model_the_script_cannot_handle_keeps_its_glb_and_says_why(): void

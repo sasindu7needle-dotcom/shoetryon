@@ -22,7 +22,7 @@ enum ShoeFitRoundStatus: string
     public function label(): string
     {
         return match ($this) {
-            self::Processing => 'Claude is working',
+            self::Processing => 'Working on it',
             self::Applied => 'New fit saved',
             self::NoChange => 'No change',
             self::Failed => 'Failed',

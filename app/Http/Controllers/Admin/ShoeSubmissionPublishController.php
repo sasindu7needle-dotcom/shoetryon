@@ -26,7 +26,7 @@ class ShoeSubmissionPublishController extends Controller
         abort_if($shoe === null, 409, 'This shoe is not in the library.');
 
         if ($shoe->fitRounds()->where('status', ShoeFitRoundStatus::Processing)->exists()) {
-            return back()->with('error', "Claude is still changing {$shoe->name}'s fit. Wait for it, try the shoe on again, then publish it.");
+            return back()->with('error', "Still fixing {$shoe->name}'s fit. Wait for it, then publish.");
         }
 
         DB::transaction(function () use ($shoe, $submission) {

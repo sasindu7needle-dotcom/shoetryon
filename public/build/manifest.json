@@ -3,8 +3,8 @@
     "file": "assets/RoomEnvironment-CSDGHJXA.js",
     "name": "RoomEnvironment"
   },
-  "_feet-renderer-B-VTevq6.js": {
-    "file": "assets/feet-renderer-B-VTevq6.js",
+  "_feet-renderer-CMCyF6d4.js": {
+    "file": "assets/feet-renderer-CMCyF6d4.js",
     "name": "feet-renderer",
     "imports": [
       "_RoomEnvironment-CSDGHJXA.js"
@@ -55,7 +55,7 @@
     "src": "_fonts-CtIHHeqQ.css"
   },
   "resources/css/app.css": {
-    "file": "assets/app-CFBbbLCt.css",
+    "file": "assets/app-Bo8Zy7eJ.css",
     "name": "app",
     "names": [
       "app.css"
@@ -70,12 +70,12 @@
     "isEntry": true
   },
   "resources/js/feet-preview.js": {
-    "file": "assets/feet-preview-ByAYwoRi.js",
+    "file": "assets/feet-preview-B_TzXl3U.js",
     "name": "feet-preview",
     "src": "resources/js/feet-preview.js",
     "isEntry": true,
     "imports": [
-      "_feet-renderer-B-VTevq6.js"
+      "_feet-renderer-CMCyF6d4.js"
     ]
   },
   "resources/js/landing.js": {
@@ -87,8 +87,14 @@
       "_RoomEnvironment-CSDGHJXA.js"
     ]
   },
+  "resources/js/link-qr.js": {
+    "file": "assets/link-qr-B64PZ-RA.js",
+    "name": "link-qr",
+    "src": "resources/js/link-qr.js",
+    "isEntry": true
+  },
   "resources/js/model-preview.js": {
-    "file": "assets/model-preview-CwiQWzOy.js",
+    "file": "assets/model-preview-Ckev3BDy.js",
     "name": "model-preview",
     "src": "resources/js/model-preview.js",
     "isEntry": true,
@@ -97,12 +103,12 @@
     ]
   },
   "resources/js/tryon.js": {
-    "file": "assets/tryon-D7I4nZX-.js",
+    "file": "assets/tryon-CZ51_dV8.js",
     "name": "tryon",
     "src": "resources/js/tryon.js",
     "isEntry": true,
     "imports": [
-      "_feet-renderer-B-VTevq6.js"
+      "_feet-renderer-CMCyF6d4.js"
     ]
   }
 }

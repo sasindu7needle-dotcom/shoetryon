@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Admin;
 
-use App\Http\Requests\Admin\ReviewShoeSubmissionRequest;
 use App\Http\Requests\Admin\StoreSubmissionFitRoundRequest;
 use App\Models\Shoe;
 use App\Models\ShoeFitRound;
@@ -163,7 +162,7 @@ class FeetPreviewPhotoTest extends TestCase
 
         $this->actingAs($this->admin)->withoutVite()->get(route('admin.shoe-submissions.preview', $submission))
             ->assertOk()
-            ->assertSee('Send to Claude to optimize the fit')
+            ->assertSee('Fix the fit')
             ->assertViewHas('preview', fn (array $preview) => $preview['claudeUrl'] === route('admin.shoe-submissions.fit-rounds.store', $submission)
                 && $preview['legMask'] === true
                 && $preview['isClaudeFit'] === false);
@@ -183,7 +182,6 @@ class FeetPreviewPhotoTest extends TestCase
 
         $this->actingAs($this->admin)->post(route('admin.shoe-submissions.review.store', $submission), [
             'decision' => 'approve',
-            'checks' => array_keys(ReviewShoeSubmissionRequest::CHECKS),
         ])->assertSessionHas('error');
 
         $this->assertFalse(Shoe::query()->where('slug', 'beach-sandal')->exists());

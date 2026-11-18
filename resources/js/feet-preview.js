@@ -85,8 +85,8 @@ async function save() {
 // ---- controls ---------------------------------------------------------------------
 
 function describeFit() {
-    if (config.isClaudeFit) return 'Using the fit Claude suggested.';
-    return usesEffect ? 'Fitted automatically from the shoe\'s shape.' : 'Fitted automatically to your feet.';
+    if (config.isClaudeFit) return 'Using the fixed fit.';
+    return 'Fitted to your feet.';
 }
 
 // "Feet inside" hides the shoe's footbed and collar where the wearer's foot
@@ -106,7 +106,7 @@ showLegMaskState();
 // An effect has DeepAR's own foot occluders.
 legMaskButton.hidden = usesEffect;
 if (config.effectError) {
-    savedNote.textContent = `Drawn without a DeepAR effect: ${config.effectError}`;
+    savedNote.textContent = 'Shown in basic mode.';
 }
 
 // A fit saved by hand before the shoe was fitted automatically is replaced;
@@ -139,7 +139,7 @@ function showPhotoError(message) {
 function showClaudeState() {
     if (!photoSend) return;
     photoSend.disabled = isClaudeWorking;
-    photoSend.textContent = isClaudeWorking ? 'Claude is working on the last photo…' : 'Send to Claude to optimize the fit';
+    photoSend.textContent = isClaudeWorking ? 'Fixing the fit…' : 'Fix the fit';
 }
 
 function toBlob(canvas, quality) {
@@ -208,7 +208,7 @@ photoSend?.addEventListener('click', async () => {
         photoComment.value = '';
         photoDialog.close();
         isClaudeWorking = true;
-        savedNote.textContent = 'Sent to Claude. The new fit shows here in about a minute; keep the camera open.';
+        savedNote.textContent = 'Sent. The new fit shows here in about a minute.';
         watchClaude(answer.round?.id);
     } catch {
         showPhotoError('Could not send the photo. Check your connection.');
@@ -231,11 +231,11 @@ function watchClaude(roundId = null) {
                     fit = structuredClone(round.fit);
                     config.isClaudeFit = true;
                     showFit();
-                    savedNote.textContent = `Claude's new fit is on${round.message ? `: ${round.message}` : '.'}`;
+                    savedNote.textContent = `New fit is on${round.message ? `: ${round.message}` : '.'}`;
                 } else {
                     savedNote.textContent = round.status === 'no_change'
-                        ? `Claude changed nothing${round.message ? `: ${round.message}` : '.'}`
-                        : `Claude could not finish${round.message ? `: ${round.message}` : '.'}`;
+                        ? `Nothing to change${round.message ? `: ${round.message}` : '.'}`
+                        : `Could not fix the fit${round.message ? `: ${round.message}` : '.'}`;
                 }
                 return;
             }
@@ -248,7 +248,7 @@ function watchClaude(roundId = null) {
 }
 
 if (isClaudeWorking) {
-    savedNote.textContent = 'Claude is working on your last photo…';
+    savedNote.textContent = 'Fixing the fit…';
     watchClaude();
 }
 
@@ -307,11 +307,11 @@ function startDebugReadout(getFeet) {
 
 async function main() {
     if (!config.licenseKey) {
-        showStatus('Set DEEPAR_LICENSE_KEY in the environment, then reload.', { isBusy: false });
+        showStatus('The try-on is not set up yet.', { isBusy: false });
         return;
     }
     if (!usesEffect && !config.trackerEffect) {
-        showStatus('Foot tracking needs a shoe effect (.deepar) on the server, and none was found. Upload one to a shoe, then reload.', { isBusy: false });
+        showStatus('Foot tracking is not set up yet.', { isBusy: false });
         return;
     }
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
@@ -324,7 +324,7 @@ async function main() {
 
     if (!usesEffect) {
         showStatus('Loading the 3D model…');
-        await feetRenderer.show(config.modelUrl, fit, legMask);
+        await feetRenderer.show(config.modelUrl, fit, legMask, config.side);
     }
 
     showStatus('Starting foot tracking…');

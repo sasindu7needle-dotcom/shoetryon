@@ -2,7 +2,7 @@
     $status = $submission->status;
     $photoUrl = route('admin.shoe-submissions.files.show', [$submission, 'photo']);
     $modelUrl = route('admin.shoe-submissions.files.show', [$submission, 'model']);
-    $missingFileHelp = 'Uploaded files are lost when the server restarts or is redeployed (Render\'s free disk is not kept). Send the shoe again from the Add new shoe page.';
+    $missingFileHelp = 'Send the shoe again from the Add new shoe page.';
 @endphp
 
 <x-admin-layout :title="$submission->name">
@@ -42,9 +42,6 @@
                     @endif
                 </div>
             @endif
-            @if ($submission->tripo_task_id)
-                <p class="break-all text-xs text-slate-500">Tripo task {{ $submission->tripo_task_id }}</p>
-            @endif
         </aside>
 
         <div class="flex flex-col gap-6">
@@ -58,16 +55,16 @@
                         <button type="button" data-model-reset class="absolute right-3 bottom-3 rounded-lg bg-white/90 px-3 py-1.5 text-xs font-medium shadow-sm transition hover:bg-white">Reset view</button>
                     </div>
                     <div class="flex flex-wrap items-center justify-between gap-3">
-                        <p class="text-sm text-slate-500">Drag to turn it, scroll or pinch to zoom. Check the shape, the sole and the colours against the photo.</p>
-                        <a href="{{ $modelUrl }}?download=1" class="inline-flex h-10 items-center rounded-lg border border-slate-300 px-4 text-sm font-medium transition hover:bg-slate-100">Download GLB</a>
+                        <p class="text-sm text-slate-500">Drag to turn, pinch to zoom.</p>
+                        <a href="{{ $modelUrl }}?download=1" class="inline-flex h-10 items-center rounded-lg border border-slate-300 px-4 text-sm font-medium transition hover:bg-slate-100">Download 3D model</a>
                     </div>
                     @vite('resources/js/model-preview.js')
                 @elseif ($submission->glb_path)
                     <p class="rounded-xl bg-rose-50 p-4 text-sm text-rose-800">The 3D model file is no longer on the server. {{ $missingFileHelp }}</p>
                 @elseif ($status === \App\ShoeSubmissionStatus::Processing)
-                    <p class="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Tripo is making the 3D model. It usually takes 1 to 3 minutes; reload the page to check.</p>
+                    <p class="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Making the 3D model. Reload in 1 to 3 minutes.</p>
                 @else
-                    <p class="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">There is no 3D model for this shoe. Send it again from the Add new shoe page.</p>
+                    <p class="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">No 3D model yet. Send the shoe again.</p>
                 @endif
             </section>
 
@@ -75,7 +72,7 @@
                 <section id="review" class="flex scroll-mt-6 flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
                     <div>
                         <h2 class="text-xl font-bold">Review the 3D model</h2>
-                        <p class="mt-1 text-sm text-slate-500">Step 1 of 2. First put the shoe on your feet with your phone camera, then compare it with the photo. Approving adds it to the library, hidden, worn as this 3D model; no DeepAR Studio needed. If a check fails, reject it and say what is wrong.</p>
+                        <p class="mt-1 text-sm text-slate-500">Step 1 of 2. Try it on your feet, then approve or reject it.</p>
                     </div>
 
                     @if ($hasModel)
@@ -85,53 +82,47 @@
                         <div class="flex flex-col gap-3 rounded-xl border border-brand-500/30 bg-brand-500/5 p-4">
                             <div>
                                 <h3 class="font-semibold">Preview it on your feet</h3>
-                                <p class="mt-1 text-sm text-slate-600">Opens the phone camera and puts this 3D model on your tracked feet. No DeepAR Studio needed. Point the back camera at your feet from 1–2 m away; use the buttons on screen to line it up if it is off. How you line it up is saved as the shoe's starting fit.</p>
+                                <p class="mt-1 text-sm text-slate-600">Point the back camera at your feet from 1–2 m away. Use the buttons to line it up.</p>
                             </div>
-                            <div class="flex flex-wrap items-center gap-3">
+                            <div class="flex flex-wrap items-center gap-5">
                                 <a href="{{ $feetPreviewUrl }}" class="btn-flame">Preview on my feet</a>
-                                <button type="button" data-copy-link="{{ $feetPreviewUrl }}" class="inline-flex h-11 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium transition hover:bg-slate-100">Copy link for your phone</button>
+                                <figure class="flex items-center gap-3">
+                                    <div data-link-qr="{{ $feetPreviewUrl }}" role="img" aria-label="QR code that opens the feet preview on your phone" class="size-32 shrink-0 rounded-lg border border-slate-300 bg-white p-1"></div>
+                                    <figcaption class="max-w-40 text-sm text-slate-600">Scan to open on your phone.</figcaption>
+                                </figure>
                             </div>
-                            <p class="text-xs text-slate-500">On the phone, sign in to the admin first. The camera needs the https:// address.</p>
+                            <p class="text-xs text-slate-500">Sign in to the admin on your phone first.</p>
                         </div>
-                        <script>
-                            document.querySelectorAll('[data-copy-link]').forEach((button) => {
-                                button.addEventListener('click', async () => {
-                                    try {
-                                        await navigator.clipboard.writeText(button.dataset.copyLink);
-                                        button.textContent = 'Link copied';
-                                    } catch {
-                                        window.prompt('Copy this link', button.dataset.copyLink);
-                                    }
-                                });
-                            });
-                        </script>
+                        @vite('resources/js/link-qr.js')
+
+                        @php
+                            $otherSide = $submission->shoe_side?->opposite();
+                        @endphp
+                        <form method="POST" action="{{ route('admin.shoe-submissions.side.update', $submission) }}" class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-4">
+                            @csrf
+                            @method('PUT')
+                            <div class="text-sm">
+                                <p class="font-semibold">
+                                    {{ $submission->shoe_side ? $submission->shoe_side->label() : 'Side guessed from the model’s shape' }}
+                                </p>
+                                <p class="mt-0.5 text-slate-600">Left foot showing the right shoe? Switch the side and the AR effect is built again, mirrored.</p>
+                            </div>
+                            @if ($otherSide)
+                                <button type="submit" name="shoe_side" value="{{ $otherSide->value }}" class="inline-flex h-10 items-center rounded-lg border border-slate-300 px-4 text-sm font-medium transition hover:bg-slate-100">Make it a {{ $otherSide->value }} shoe</button>
+                            @else
+                                <div class="flex gap-2">
+                                    @foreach (\App\ShoeSide::cases() as $side)
+                                        <button type="submit" name="shoe_side" value="{{ $side->value }}" class="inline-flex h-10 items-center rounded-lg border border-slate-300 px-4 text-sm font-medium transition hover:bg-slate-100">{{ $side->label() }}</button>
+                                    @endforeach
+                                </div>
+                            @endif
+                        </form>
                     @else
-                        <p class="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">The model can't be checked because its file is missing, so it can only be rejected.</p>
+                        <p class="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">The model file is missing, so it can only be rejected.</p>
                     @endif
 
-                    <form method="POST" action="{{ route('admin.shoe-submissions.review.store', $submission) }}" class="flex flex-col gap-5">
+                    <form method="POST" action="{{ route('admin.shoe-submissions.review.store', $submission) }}">
                         @csrf
-                        <fieldset class="flex flex-col gap-2.5" @disabled(! $hasModel)>
-                            <legend class="mb-2 text-sm font-semibold">Checklist</legend>
-                            @foreach ($reviewChecks as $check => $label)
-                                <label class="flex items-start gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm transition has-checked:border-emerald-300 has-checked:bg-emerald-50">
-                                    <input type="checkbox" name="checks[]" value="{{ $check }}" @checked(in_array($check, (array) old('checks', []), true)) class="mt-0.5 size-4 rounded accent-brand-900">
-                                    <span>{{ $label }}</span>
-                                </label>
-                            @endforeach
-                            @error('checks')
-                                <p class="text-sm text-rose-600">{{ $message }}</p>
-                            @enderror
-                        </fieldset>
-
-                        <div class="flex flex-col gap-1.5">
-                            <label for="note" class="text-sm font-semibold">Notes <span class="font-normal text-slate-500">(required to reject)</span></label>
-                            <textarea id="note" name="note" rows="3" maxlength="2000" placeholder="e.g. The heel strap is missing and the sole is hollow." class="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none">{{ old('note') }}</textarea>
-                            @error('note')
-                                <p class="text-sm text-rose-600">{{ $message }}</p>
-                            @enderror
-                        </div>
-
                         <div class="flex flex-wrap justify-end gap-3">
                             <button type="submit" name="decision" value="reject" class="inline-flex h-11 items-center rounded-lg border border-rose-300 px-5 text-sm font-medium text-rose-700 transition hover:bg-rose-50">Reject model</button>
                             <button type="submit" name="decision" value="approve" @disabled(! $hasModel) class="btn-flame disabled:cursor-not-allowed disabled:opacity-50">Approve and add to library</button>
@@ -142,13 +133,13 @@
                 <section class="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
                     <div>
                         <h2 class="text-xl font-bold">Add to the shoe library</h2>
-                        <p class="mt-1 text-sm text-slate-500">This shoe was approved before shoes could be worn as their 3D model, so it waits for a DeepAR effect. Download the GLB, import it into DeepAR Studio's shoe try-on template, export the <code>.deepar</code> file and upload it here. The shoe joins the library hidden; then you try it on live before it goes on the site.</p>
+                        <p class="mt-1 text-sm text-slate-500">Upload the AR effect file for this shoe.</p>
                     </div>
 
                     <form method="POST" action="{{ route('admin.shoe-submissions.library.store', $submission) }}" enctype="multipart/form-data" class="flex flex-col gap-4">
                         @csrf
                         <div class="flex flex-col gap-1.5">
-                            <label for="effect" class="text-sm font-semibold">DeepAR effect (.deepar)</label>
+                            <label for="effect" class="text-sm font-semibold">AR effect file</label>
                             <input id="effect" name="effect" type="file" accept=".deepar" required class="text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-4 file:py-2 file:font-medium">
                             @error('effect')
                                 <p class="text-sm text-rose-600">{{ $message }}</p>
@@ -161,7 +152,7 @@
                 </section>
             @elseif ($status === \App\ShoeSubmissionStatus::Rejected)
                 <section class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
-                    <p class="text-sm text-slate-600">This model was rejected. Retake the photos with the review notes in mind and send the shoe again.</p>
+                    <p class="text-sm text-slate-600">This model was rejected. Retake the photos and send it again.</p>
                     <a href="{{ route('admin.shoe-submissions.create') }}" class="btn-flame">Send it again</a>
                 </section>
             @elseif ($status === \App\ShoeSubmissionStatus::ReadyForReview && $libraryShoe)
@@ -172,26 +163,29 @@
                 <section aria-labelledby="tryon-review-title" class="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
                     <div>
                         <h2 id="tryon-review-title" class="text-xl font-bold">Live try-on review</h2>
-                        <p class="mt-1 text-sm text-slate-500">Step 2 of 2. Wear the shoe in the live try-on, as shoppers will see it, ideally on a phone pointed at your feet. If it sits right, publish it. If not, say what is wrong and Claude works out a new fit; then try it on again.</p>
+                        <p class="mt-1 text-sm text-slate-500">Step 2 of 2. Try it on live. Publish it, or say what to fix.</p>
                     </div>
 
                     <div class="flex flex-col gap-3 rounded-xl bg-slate-50 p-4">
-                        <div class="flex flex-wrap items-center gap-3">
+                        <div class="flex flex-wrap items-center gap-5">
                             <a href="{{ $tryOnUrl }}" target="_blank" rel="noopener" class="btn-flame">Open live try-on</a>
-                            <button type="button" data-copy-link="{{ $tryOnUrl }}" class="inline-flex h-11 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium transition hover:bg-slate-100">Copy link for your phone</button>
+                            <figure class="flex items-center gap-3">
+                                <div data-link-qr="{{ $tryOnUrl }}" role="img" aria-label="QR code that opens the live try-on on your phone" class="size-32 shrink-0 rounded-lg border border-slate-300 bg-white p-1"></div>
+                                <figcaption class="max-w-40 text-sm text-slate-600">Scan to open on your phone.</figcaption>
+                            </figure>
                         </div>
-                        <p class="break-all text-xs text-slate-500">{{ $tryOnUrl }}</p>
-                        <p class="text-xs text-slate-500">The shoe is listed first as “{{ $libraryShoe->name }} (preview)”. It stays hidden from shoppers until you publish it. Open the link again after each new fit so it loads.</p>
+                        @vite('resources/js/link-qr.js')
+                        <p class="text-xs text-slate-500">Shoppers can't see it until you publish it.</p>
                     </div>
 
                     @if ($isFitRoundProcessing)
                         <div role="status" class="flex items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
                             <span class="size-5 shrink-0 animate-spin rounded-full border-2 border-amber-300 border-t-amber-700"></span>
-                            <p>Claude is working out a new fit. This page reloads by itself when it is done; then try the shoe on again.</p>
+                            <p>Working on a new fit. This page reloads when it is done.</p>
                         </div>
                         <script>setTimeout(() => location.reload(), 15000);</script>
                     @elseif ($latestRound?->status === \App\ShoeFitRoundStatus::Applied)
-                        <p class="rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-900">Claude saved a new fit {{ $latestRound->updated_at->diffForHumans() }}. Open the live try-on again to check it.</p>
+                        <p class="rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-900">New fit saved {{ $latestRound->updated_at->diffForHumans() }}. Try it on again.</p>
                     @endif
 
                     <div class="grid gap-4 md:grid-cols-2">
@@ -199,7 +193,7 @@
                             @csrf
                             <div>
                                 <h3 class="font-semibold">It sits right</h3>
-                                <p class="mt-1 text-sm text-slate-500">The shoe follows the foot, the heel and toe line up, and it rests on the floor. Publishing makes it visible on the site.</p>
+                                <p class="mt-1 text-sm text-slate-500">Publishing shows it on the site.</p>
                             </div>
                             <button type="submit" @disabled($isFitRoundProcessing) class="btn-flame self-start disabled:cursor-not-allowed disabled:opacity-50">Approve and publish</button>
                         </form>
@@ -208,11 +202,11 @@
                             @csrf
                             <div>
                                 <h3 class="font-semibold">It needs fixing</h3>
-                                <p class="mt-1 text-sm text-slate-500">Sent to the n8n re-optimize workflow; Claude changes the fit only, no new AR files are built.</p>
+                                <p class="mt-1 text-sm text-slate-500">We'll adjust the fit for you.</p>
                             </div>
 
                             @unless ($isReoptimizeConfigured)
-                                <p role="alert" class="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Set <code>N8N_REOPTIMIZE_URL</code> and <code>N8N_SHOPAR_KEY</code> to send fixes to Claude.</p>
+                                <p role="alert" class="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Fit fixes are not set up yet.</p>
                             @endunless
 
                             <div class="flex flex-col gap-1.5">
@@ -231,7 +225,7 @@
                                 @enderror
                             </div>
 
-                            <button type="submit" @disabled(! $isReoptimizeConfigured || $isFitRoundProcessing) class="inline-flex h-11 items-center self-start rounded-lg border border-rose-300 px-5 text-sm font-medium text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50">Send to Claude</button>
+                            <button type="submit" @disabled(! $isReoptimizeConfigured || $isFitRoundProcessing) class="inline-flex h-11 items-center self-start rounded-lg border border-rose-300 px-5 text-sm font-medium text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50">Fix the fit</button>
                         </form>
                     </div>
 
@@ -260,19 +254,6 @@
 
                     <p class="text-xs text-slate-500">Want to set the fit by hand? <a href="{{ route('admin.shoes.edit', $libraryShoe) }}" class="font-medium text-brand-900 underline">Edit the AR fit</a>.</p>
                 </section>
-
-                <script>
-                    document.querySelectorAll('[data-copy-link]').forEach((button) => {
-                        button.addEventListener('click', async () => {
-                            try {
-                                await navigator.clipboard.writeText(button.dataset.copyLink);
-                                button.textContent = 'Link copied';
-                            } catch {
-                                window.prompt('Copy this link', button.dataset.copyLink);
-                            }
-                        });
-                    });
-                </script>
             @elseif ($libraryShoe)
                 <section class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
                     <p class="text-sm text-slate-600">
@@ -282,7 +263,7 @@
                             This shoe is in the library{{ $libraryShoe->is_visible ? '' : ', hidden' }}.
                         @endif
                     </p>
-                    <a href="{{ route('admin.shoes.edit', $libraryShoe) }}" class="btn-flame">Edit and re-optimize</a>
+                    <a href="{{ route('admin.shoes.edit', $libraryShoe) }}" class="btn-flame">Edit the fit</a>
                 </section>
             @endif
         </div>

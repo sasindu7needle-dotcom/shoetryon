@@ -27,7 +27,7 @@ class ShoeSubmissionReviewController extends Controller
         $isApproval = $request->isApproval();
 
         if ($isApproval && $submission->fitRounds()->where('status', ShoeFitRoundStatus::Processing)->exists()) {
-            return back()->withInput()->with('error', "Claude is still changing {$submission->name}'s preview fit. Wait for it, check it on your feet, then approve.");
+            return back()->withInput()->with('error', "Still fixing {$submission->name}'s fit. Wait for it, then approve.");
         }
 
         if ($isApproval && Shoe::query()->where('slug', $submission->slug)->exists()) {
@@ -55,13 +55,11 @@ class ShoeSubmissionReviewController extends Controller
                     : 'The 3D model was rejected. Send the shoe again from the Add new shoe page.',
                 'reviewed_by' => $request->user()->id,
                 'reviewed_at' => now(),
-                'review_checks' => $request->passedChecks(),
-                'review_note' => trim((string) $request->validated('note')) ?: null,
             ]);
         });
 
         return redirect()->route('admin.shoe-submissions.show', $submission)->with('status', $isApproval
-            ? "{$submission->name} was approved and added to the library, hidden. Try it on live, then publish it or tell Claude what to fix."
+            ? "{$submission->name} was approved and added to the library, hidden. Try it on live, then publish it or fix the fit."
             : "{$submission->name}'s 3D model was rejected. Send the shoe again with clearer photos.");
     }
 }

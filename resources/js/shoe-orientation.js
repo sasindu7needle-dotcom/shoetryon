@@ -220,14 +220,15 @@ export function detectShoeAxes(surface) {
 /**
  * The rotation (and, for a left shoe, mirror) that stands the model on the
  * foot: sole down (-y), toes forward (+z), big toe on the +x side, which is
- * how DeepAR's right foot is laid out. A left shoe is only mirrored when the
- * outline says so clearly; otherwise it is left as it is.
+ * how DeepAR's right foot is laid out. side ('left' or 'right') is which foot
+ * the admin said the shoe is for; without it, a left shoe is only mirrored
+ * when the outline says so clearly. Keep in step with scripts/build-deepar-effect.py.
  */
-export function orientationMatrix(axes, { minimumSideConfidence = 0.03 } = {}) {
+export function orientationMatrix(axes, { side = null, minimumSideConfidence = 0.03 } = {}) {
     const up = axes.down.clone().negate();
     const toe = axes.toe;
     const rightHandedX = new THREE.Vector3().crossVectors(up, toe);
-    const mirror = axes.isLeftShoe && axes.confidence.side >= minimumSideConfidence;
+    const mirror = side ? side === 'left' : axes.isLeftShoe && axes.confidence.side >= minimumSideConfidence;
     const x = mirror ? rightHandedX.negate() : rightHandedX;
     return new THREE.Matrix4().set(
         x.x, x.y, x.z, 0,

@@ -14,8 +14,10 @@ use Illuminate\Support\Str;
  * Turns Tripo's GLB into a DeepAR effect (scripts/build-deepar-effect.py
  * --auto), so DeepAR itself draws the shoe on the feet it tracks, the same
  * way as the shoes built in DeepAR Studio. The script stands the model on the
- * foot from its own shape (sole down, toes forward, left or right) and
- * reports the fit that places it, which becomes the preview's starting fit.
+ * foot from its own shape (sole down, toes forward), mirrors a left shoe
+ * into a right one (the side the admin chose, or else guessed from the sole's
+ * outline) and reports the fit that places it, which becomes the preview's
+ * starting fit.
  */
 class ShoeEffectBuilder
 {
@@ -40,16 +42,23 @@ class ShoeEffectBuilder
         $effectPath = self::EFFECT_FOLDER.'/'.$submission->slug.'.deepar';
         $disk->makeDirectory(self::EFFECT_FOLDER);
 
+        $command = [
+            $settings['python'],
+            base_path('scripts/build-deepar-effect.py'),
+            public_path($settings['template']),
+            $disk->path($submission->glb_path),
+            $disk->path($effectPath),
+            $submission->slug,
+            '--auto',
+        ];
+
+        // The admin's choice beats the script's guess from the sole's outline, which smooth generated shoes can fool.
+        if ($submission->shoe_side !== null) {
+            $command[] = '--side='.$submission->shoe_side->value;
+        }
+
         try {
-            $result = Process::timeout($settings['timeout'])->path(base_path())->run([
-                $settings['python'],
-                base_path('scripts/build-deepar-effect.py'),
-                public_path($settings['template']),
-                $disk->path($submission->glb_path),
-                $disk->path($effectPath),
-                $submission->slug,
-                '--auto',
-            ]);
+            $result = Process::timeout($settings['timeout'])->path(base_path())->run($command);
         } catch (ProcessTimedOutException) {
             return $this->fail($submission, "Building the effect took longer than {$settings['timeout']} seconds.");
         }

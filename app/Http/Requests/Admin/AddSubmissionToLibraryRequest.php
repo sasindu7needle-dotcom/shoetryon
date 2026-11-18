@@ -30,7 +30,7 @@ class AddSubmissionToLibraryRequest extends FormRequest
      */
     public function attributes(): array
     {
-        return ['effect' => 'DeepAR effect'];
+        return ['effect' => 'AR effect'];
     }
 
     /**
@@ -39,8 +39,8 @@ class AddSubmissionToLibraryRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'effect.extensions' => 'The DeepAR effect must be a .deepar file exported from DeepAR Studio.',
-            'effect.max' => 'The DeepAR effect must be 50 MB or smaller.',
+            'effect.extensions' => 'The AR effect must be a .deepar file.',
+            'effect.max' => 'The AR effect must be 50 MB or smaller.',
         ];
     }
 }

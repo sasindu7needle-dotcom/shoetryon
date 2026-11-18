@@ -63,9 +63,9 @@ enum ShoeSubmissionStatus: string
     public function nextStep(): ?string
     {
         return match ($this) {
-            self::ModelReady => 'Preview it on your feet, then approve or reject the 3D model.',
-            self::ModelApproved => 'Build its .deepar effect in DeepAR Studio and upload it.',
-            self::ReadyForReview => 'Try it on live, then publish it or tell Claude what to fix.',
+            self::ModelReady => 'Try it on your feet, then approve or reject it.',
+            self::ModelApproved => 'Upload its AR effect file.',
+            self::ReadyForReview => 'Try it on live, then publish it or fix the fit.',
             default => null,
         };
     }

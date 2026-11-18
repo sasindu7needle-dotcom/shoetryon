@@ -18,10 +18,10 @@ class ShoeFitRoundController extends Controller
      */
     public function store(StoreShoeFitRoundRequest $request, Shoe $shoe, FitRoundWorkflow $workflow): RedirectResponse
     {
-        abort_unless(FitRoundWorkflow::isConfigured(), 503, 'The n8n re-optimize webhook is not set.');
+        abort_unless(FitRoundWorkflow::isConfigured(), 503, 'Fit fixes are not set up yet.');
 
         if ($shoe->fitRounds()->where('status', ShoeFitRoundStatus::Processing)->exists()) {
-            return back()->with('error', "Claude is still working on the last request for {$shoe->name}. Wait for it to finish.");
+            return back()->with('error', "Still working on the last fix for {$shoe->name}. Wait for it to finish.");
         }
 
         $round = $shoe->fitRounds()->create([
@@ -41,9 +41,9 @@ class ShoeFitRoundController extends Controller
         if ($failure !== null) {
             $round->update(['status' => ShoeFitRoundStatus::Failed, 'message' => $failure]);
 
-            return back()->withInput()->with('error', "The request could not be sent to n8n. {$failure}");
+            return back()->withInput()->with('error', "The fix could not be sent. {$failure}");
         }
 
-        return back()->with('status', "Sent to Claude. The new fit for {$shoe->name} is saved here in about a minute; reload the page, then test it on your phone.");
+        return back()->with('status', "Sent. The new fit for {$shoe->name} is ready in about a minute.");
     }
 }

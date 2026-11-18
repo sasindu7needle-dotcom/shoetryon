@@ -64,7 +64,7 @@ class FitRoundWorkflow
         } catch (ConnectionException $exception) {
             Log::warning('Could not reach the n8n re-optimize webhook.', ['round' => $round->id, 'error' => $exception->getMessage()]);
 
-            return 'n8n could not be reached. Check that it is running and that N8N_REOPTIMIZE_URL is right.';
+            return 'The fit service could not be reached. Try again later.';
         }
 
         if ($response->successful()) {
@@ -74,9 +74,9 @@ class FitRoundWorkflow
         Log::warning('The n8n re-optimize webhook refused a request.', ['round' => $round->id, 'status' => $response->status(), 'body' => mb_substr($response->body(), 0, 500)]);
 
         return match ($response->status()) {
-            401, 403 => 'n8n refused the key. Check that N8N_SHOPAR_KEY matches the "ShopAR key" credential in n8n.',
-            404 => 'n8n has no webhook at that address. Publish the workflow and use its production webhook URL.',
-            default => "n8n answered with an error (HTTP {$response->status()}).",
+            401, 403 => 'The fit service refused the key. Ask your developer to check the setup.',
+            404 => 'The fit service is not set up right. Ask your developer to check it.',
+            default => "The fit service had an error (HTTP {$response->status()}). Try again later.",
         };
     }
 }

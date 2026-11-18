@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\ShoeSubmission;
+use App\ShoeSide;
 use App\ShoeSubmissionStatus;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
@@ -25,6 +26,7 @@ class ShoeSubmissionFactory extends Factory
             'name' => $name,
             'slug' => ShoeSubmission::slugFor($name),
             'shoe_type' => 'low',
+            'shoe_side' => ShoeSide::Right,
             'length_cm' => 27,
             'status' => ShoeSubmissionStatus::Processing,
         ];

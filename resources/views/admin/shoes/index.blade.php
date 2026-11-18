@@ -11,7 +11,7 @@
 <x-admin-layout title="Shoe library">
     <x-slot:header>
         <h1 class="rise text-3xl font-bold sm:text-4xl">Shoe library</h1>
-        <p class="rise mt-2 text-white/85" style="animation-delay:.1s">The site lists visible shoes in this order. Hidden shoes stay here until you unhide them.</p>
+        <p class="rise mt-2 text-white/85" style="animation-delay:.1s">Shoes show on the site in this order.</p>
     </x-slot:header>
 
     <section aria-label="Shoes" class="overflow-hidden rounded-2xl border border-slate-200 bg-white">

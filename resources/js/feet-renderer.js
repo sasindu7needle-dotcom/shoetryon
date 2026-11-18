@@ -83,17 +83,18 @@ export const SHOE_LENGTH = 25;
 
 // Stands the model on the foot whatever axes, facing, side and units the
 // generator used: its shape says which way is down, where the toes are and
-// whether it is a left or a right shoe (see shoe-orientation.js). It is then
+// whether it is a left or a right shoe (see shoe-orientation.js), unless the
+// admin said which foot it is for (side). It is then
 // turned to sole down (-y), toes forward (+z) and big toe on +x, scaled to
 // SHOE_LENGTH, and moved so the middle of its sole is at the origin, so a fit's
 // scale and rotation work around the sole instead of lifting the shoe off it.
 // Remembers the resulting bounds, which the foot and leg occluders are sized
 // from, and what was detected, for the debug readout.
-function normalise(model) {
+function normalise(model, side = null) {
     const holder = new THREE.Group();
     holder.add(model);
     const axes = detectShoeAxes(sampleSurface(model));
-    holder.applyMatrix4(orientationMatrix(axes));
+    holder.applyMatrix4(orientationMatrix(axes, { side }));
     holder.updateMatrixWorld(true);
 
     const box = new THREE.Box3().setFromObject(holder);
@@ -110,7 +111,7 @@ function normalise(model) {
     shoe.updateMatrixWorld(true);
     const bounds = new THREE.Box3().setFromObject(shoe);
     shoe.userData.bounds = { min: bounds.min.toArray(), max: bounds.max.toArray() };
-    shoe.userData.orientation = axes;
+    shoe.userData.orientation = { ...axes, side };
 
     return shoe;
 }
@@ -226,20 +227,21 @@ export class FeetRenderer {
     }
 
     // Loads (or reuses) the GLB and shows it on both feet.
-    async show(url, fit, legMask = false) {
-        this.modelUrl = url;
-        if (!this.models.has(url)) {
-            this.models.set(url, this.loader.loadAsync(url).then((gltf) => normalise(gltf.scene)));
+    async show(url, fit, legMask = false, side = null) {
+        const key = `${url}#${side ?? 'auto'}`;
+        this.modelUrl = key;
+        if (!this.models.has(key)) {
+            this.models.set(key, this.loader.loadAsync(url).then((gltf) => normalise(gltf.scene, side)));
         }
         let model;
         try {
-            model = await this.models.get(url);
+            model = await this.models.get(key);
         } catch (error) {
-            this.models.delete(url);
+            this.models.delete(key);
             throw error;
         }
         // A newer shoe was chosen while this one downloaded.
-        if (this.modelUrl !== url) return;
+        if (this.modelUrl !== key) return;
 
         for (const foot of this.feet) {
             foot.fitted.clear();
@@ -346,7 +348,7 @@ export class FeetRenderer {
         if (orientation) {
             const axis = (vector) => ['x', 'y', 'z'].map((name, i) => (Math.round(vector.getComponent(i)) ? `${vector.getComponent(i) > 0 ? '+' : '-'}${name}` : '')).join('');
             const sure = Object.entries(orientation.confidence).map(([name, value]) => `${name} ${value.toFixed(2)}`).join(', ');
-            lines.push(`model: down ${axis(orientation.down)}, toes ${axis(orientation.toe)}, big toe ${axis(orientation.bigToe)}, ${orientation.isLeftShoe ? 'left' : 'right'} shoe (sure: ${sure})`);
+            lines.push(`model: down ${axis(orientation.down)}, toes ${axis(orientation.toe)}, big toe ${axis(orientation.bigToe)}, ${orientation.isLeftShoe ? 'left' : 'right'} shoe by shape${orientation.side ? `, ${orientation.side} shoe by admin` : ''} (sure: ${sure})`);
         }
         for (const foot of this.feet) {
             if (!foot.anchor.visible) {

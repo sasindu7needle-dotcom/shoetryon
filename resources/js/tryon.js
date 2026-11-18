@@ -89,7 +89,7 @@ const consoleLog = console.log.bind(console);
 console.log = (...args) => {
     consoleLog(...args);
     if (/license key not valid/i.test(String(args[0]))) {
-        fail(`DeepAR license key not valid for ${location.hostname}. Add this domain to the Web app on developer.deepar.ai.`);
+        fail('The try-on is not available on this site right now.');
     }
 };
 
@@ -334,7 +334,7 @@ async function selectShoe(id) {
 
 async function main() {
     if (!licenseKey) {
-        fail('Missing DeepAR license key.');
+        fail('The try-on is not available right now.');
         return;
     }
     const unsupported = unsupportedReason();

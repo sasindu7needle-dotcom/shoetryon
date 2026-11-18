@@ -30,11 +30,11 @@ class ShoeSubmissionFitRoundController extends Controller
      */
     public function store(StoreSubmissionFitRoundRequest $request, ShoeSubmission $submission, FitRoundWorkflow $workflow): JsonResponse
     {
-        abort_unless(FitRoundWorkflow::isConfigured(), 503, 'The n8n re-optimize webhook is not set.');
+        abort_unless(FitRoundWorkflow::isConfigured(), 503, 'Fit fixes are not set up yet.');
         abort_unless($submission->status === ShoeSubmissionStatus::ModelReady, 409, 'This shoe is no longer waiting for its model review.');
 
         if ($submission->fitRounds()->where('status', ShoeFitRoundStatus::Processing)->exists()) {
-            return response()->json(['message' => 'Claude is still working on the last photo. Wait for it to finish.'], 409);
+            return response()->json(['message' => 'Still working on the last photo. Wait for it to finish.'], 409);
         }
 
         $fit = $submission->preview_fit['fit'] ?? Shoe::FEET_DEFAULT_FIT;

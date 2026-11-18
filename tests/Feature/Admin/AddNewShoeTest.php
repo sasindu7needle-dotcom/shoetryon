@@ -5,6 +5,7 @@ namespace Tests\Feature\Admin;
 use App\Models\Shoe;
 use App\Models\ShoeSubmission;
 use App\Models\User;
+use App\ShoeSide;
 use App\ShoeSubmissionStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
@@ -42,6 +43,7 @@ class AddNewShoeTest extends TestCase
         return [
             'name' => 'Leather Loafer',
             'shoe_type' => 'low',
+            'shoe_side' => 'left',
             'length_cm' => '27.5',
             'front_photo' => UploadedFile::fake()->image('front.jpg', 800, 600),
             'right_photo' => UploadedFile::fake()->image('right.jpg', 800, 600),
@@ -68,7 +70,7 @@ class AddNewShoeTest extends TestCase
         config(['services.n8n.new_shoe_form_url' => null]);
 
         $this->actingAs($this->admin)->withoutVite()->get(route('admin.shoe-submissions.create'))
-            ->assertSee('The n8n workflow is not connected yet.');
+            ->assertSee('Adding shoes is not set up yet.');
     }
 
     public function test_photos_are_sent_to_the_n8n_form_in_its_field_order(): void
@@ -97,6 +99,7 @@ class AddNewShoeTest extends TestCase
 
         $submission = ShoeSubmission::query()->sole();
         $this->assertSame('leather-loafer', $submission->slug);
+        $this->assertSame(ShoeSide::Left, $submission->shoe_side);
         $this->assertSame(ShoeSubmissionStatus::Processing, $submission->status);
         $this->assertTrue($submission->user->is($this->admin));
     }
@@ -109,6 +112,16 @@ class AddNewShoeTest extends TestCase
 
         $this->assertSame('models/generated/leather-loafer.jpg', ShoeSubmission::query()->sole()->photo_path);
         Storage::disk('shoe_assets')->assertExists('models/generated/leather-loafer.jpg');
+    }
+
+    public function test_the_admin_must_say_which_foot_the_shoe_is_for(): void
+    {
+        Http::fake();
+
+        $response = $this->actingAs($this->admin)->post(route('admin.shoe-submissions.store'), $this->validSubmission(['shoe_side' => null]));
+
+        $response->assertSessionHasErrors(['shoe_side' => 'Choose whether the photos show a left or a right shoe.']);
+        Http::assertNothingSent();
     }
 
     public function test_boots_are_sent_with_the_boot_option(): void
@@ -128,7 +141,7 @@ class AddNewShoeTest extends TestCase
             ->post(route('admin.shoe-submissions.store'), $this->validSubmission());
 
         $response->assertRedirect(route('admin.shoe-submissions.create'));
-        $response->assertSessionHas('error', fn (string $error) => str_contains($error, 'N8N_FORM_USERNAME'));
+        $response->assertSessionHas('error', fn (string $error) => str_contains($error, 'refused the login'));
         $response->assertSessionHasInput('name', 'Leather Loafer');
         $this->assertSame(ShoeSubmissionStatus::Failed, ShoeSubmission::query()->sole()->status);
     }
@@ -161,10 +174,11 @@ class AddNewShoeTest extends TestCase
         $response = $this->actingAs($this->admin)->post(route('admin.shoe-submissions.store'), [
             'name' => '',
             'shoe_type' => 'sandal',
+            'shoe_side' => 'both',
             'length_cm' => '50',
         ]);
 
-        $response->assertSessionHasErrors(['name', 'shoe_type', 'length_cm', 'front_photo']);
+        $response->assertSessionHasErrors(['name', 'shoe_type', 'shoe_side', 'length_cm', 'front_photo']);
         $response->assertSessionDoesntHaveErrors(['right_photo', 'back_photo', 'left_photo']);
         Http::assertNothingSent();
     }

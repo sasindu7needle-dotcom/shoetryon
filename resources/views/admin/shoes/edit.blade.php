@@ -3,7 +3,7 @@
     $fit = $shoe->fit ?? ($usesEffect ? [] : \App\Models\Shoe::FEET_DEFAULT_FIT);
     $vectors = [
         'rotation' => ['Rotation', 'Euler degrees', $fit['rotation'] ?? [0, 0, 0]],
-        'position' => ['Position', $usesEffect ? 'DeepAR foot units' : 'Foot units (a foot is about 24): sideways, up, towards the toes', $fit['position'] ?? [0, 0, 0]],
+        'position' => ['Position', 'Sideways, up, towards the toes', $fit['position'] ?? [0, 0, 0]],
         'stretch' => ['Stretch', 'Width, height, length multipliers', $fit['stretch'] ?? [1, 1, 1]],
     ];
     $input = 'h-11 w-full rounded-lg border border-slate-300 px-3 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30';
@@ -71,7 +71,7 @@
                 <div class="flex flex-wrap items-start justify-between gap-3">
                     <div>
                         <h2 class="text-xl font-bold">AR fit</h2>
-                        <p class="mt-1 text-sm text-slate-500">How the shoe sits on the tracked foot. Small changes go a long way; test on a phone after saving.</p>
+                        <p class="mt-1 text-sm text-slate-500">How the shoe sits on the foot. Test on a phone after saving.</p>
                     </div>
                     <a href="{{ route('tryon', ['preview' => $shoe->slug]) }}" target="_blank" class="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-medium transition hover:bg-slate-100">Test on phone</a>
                 </div>
@@ -81,7 +81,7 @@
                         <input type="hidden" name="use_studio_fit" value="0">
                         <input type="checkbox" name="use_studio_fit" value="1" @checked(old('use_studio_fit', $shoe->fit === null)) class="size-5 rounded accent-brand-900">
                         <span>
-                            <span class="block text-sm font-semibold">Use the placement exported from DeepAR Studio</span>
+                            <span class="block text-sm font-semibold">Use the original placement</span>
                             <span class="block text-sm text-slate-500">Ignores the values below. Untick to place the shoe with them.</span>
                         </span>
                     </label>
@@ -92,7 +92,7 @@
                         <input type="checkbox" name="leg_mask" value="1" @checked(old('leg_mask', $shoe->leg_mask)) class="size-5 rounded accent-brand-900">
                         <span>
                             <span class="block text-sm font-semibold">Leg mask</span>
-                            <span class="block text-sm text-slate-500">Hides the back of the shoe's collar behind the wearer's leg. Turn it off if it cuts into the shoe.</span>
+                            <span class="block text-sm text-slate-500">Hides the back of the shoe behind the leg.</span>
                         </span>
                     </label>
                 @endif
@@ -136,14 +136,13 @@
 
         <div class="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
             <div>
-                <h2 id="reoptimize-title" class="text-xl font-bold">Re-optimize with Claude</h2>
-                <p class="mt-1 text-sm text-slate-500">Try the shoe on with your phone, then say what looks wrong, for example "the heel sticks out behind my foot" or "the shoe floats above the floor". Claude changes the AR fit and saves it here; no new AR files are built.</p>
+                <h2 id="reoptimize-title" class="text-xl font-bold">Fix the fit</h2>
+                <p class="mt-1 text-sm text-slate-500">Try it on, then say what looks wrong. We'll adjust the fit.</p>
             </div>
 
             @unless ($isReoptimizeConfigured)
                 <div role="alert" class="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
-                    <p class="font-semibold">The n8n re-optimize webhook is not connected yet.</p>
-                    <p class="mt-1">Set <code class="rounded bg-amber-100 px-1">N8N_REOPTIMIZE_URL</code> and <code class="rounded bg-amber-100 px-1">N8N_SHOPAR_KEY</code> in the environment, then reload this page.</p>
+                    <p class="font-semibold">Fit fixes are not set up yet.</p>
                 </div>
             @endunless
 
@@ -152,7 +151,7 @@
 
                 <div class="flex flex-col gap-1.5">
                     <label for="comment" class="text-sm font-semibold">What looks wrong on the phone?</label>
-                    <textarea id="comment" name="comment" rows="3" required minlength="5" maxlength="1000" class="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30">{{ old('comment') }}</textarea>
+                    <textarea id="comment" name="comment" rows="3" required minlength="5" maxlength="1000" placeholder="e.g. The heel sticks out behind my foot." class="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30">{{ old('comment') }}</textarea>
                     @error('comment')
                         <p class="text-sm text-rose-600">{{ $message }}</p>
                     @enderror
@@ -167,7 +166,7 @@
                 </div>
 
                 <div class="flex justify-end">
-                    <button type="submit" @disabled(! $isReoptimizeConfigured) class="btn-flame disabled:cursor-not-allowed disabled:opacity-50">Re-optimize</button>
+                    <button type="submit" @disabled(! $isReoptimizeConfigured) class="btn-flame disabled:cursor-not-allowed disabled:opacity-50">Fix the fit</button>
                 </div>
             </form>
 

@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Admin;
 
-use App\Http\Requests\Admin\ReviewShoeSubmissionRequest;
 use App\Models\Shoe;
 use App\Models\ShoeFitRound;
 use App\Models\ShoeSubmission;
@@ -80,7 +79,7 @@ class ShoeSubmissionReviewTest extends TestCase
             ->assertOk()
             ->assertSee('src="'.route('admin.shoe-submissions.files.show', [$submission, 'photo']).'"', false)
             ->assertSee('data-model-preview="'.route('admin.shoe-submissions.files.show', [$submission, 'model']).'"', false)
-            ->assertSee('Download GLB')
+            ->assertSee('Download 3D model')
             ->assertSee('Review the 3D model')
             ->assertSee('Approve and add to library')
             ->assertDontSee('Add to library');
@@ -103,7 +102,7 @@ class ShoeSubmissionReviewTest extends TestCase
 
         $this->actingAs($this->admin)->withoutVite()->get(route('admin.shoe-submissions.show', $submission))
             ->assertOk()
-            ->assertSee('Tripo is making the 3D model')
+            ->assertSee('Making the 3D model')
             ->assertDontSee('Approve and add to library')
             ->assertDontSee('Add to library');
     }
@@ -139,72 +138,50 @@ class ShoeSubmissionReviewTest extends TestCase
         $this->actingAs($this->admin)->get(route('admin.shoe-submissions.files.show', [$submission, 'model']))->assertNotFound();
     }
 
-    public function test_the_admin_approves_a_model_that_passes_every_check(): void
+    public function test_the_admin_approves_a_model(): void
     {
         $submission = $this->submissionWithFiles();
 
-        $this->actingAs($this->admin)->post(route('admin.shoe-submissions.review.store', $submission), [
-            'decision' => 'approve',
-            'checks' => array_keys(ReviewShoeSubmissionRequest::CHECKS),
-            'note' => 'Looks good.',
-        ])->assertRedirect(route('admin.shoe-submissions.show', $submission));
+        $this->actingAs($this->admin)->post(route('admin.shoe-submissions.review.store', $submission), ['decision' => 'approve'])
+            ->assertRedirect(route('admin.shoe-submissions.show', $submission));
 
         $submission->refresh();
         $this->assertSame(ShoeSubmissionStatus::ReadyForReview, $submission->status);
         $this->assertTrue($submission->reviewer->is($this->admin));
         $this->assertNotNull($submission->reviewed_at);
-        $this->assertSame(array_keys(ReviewShoeSubmissionRequest::CHECKS), $submission->review_checks);
-        $this->assertSame('Looks good.', $submission->review_note);
     }
 
-    public function test_approving_needs_every_check(): void
-    {
-        $submission = $this->submissionWithFiles();
-
-        $this->actingAs($this->admin)->post(route('admin.shoe-submissions.review.store', $submission), [
-            'decision' => 'approve',
-            'checks' => ['shape', 'sole'],
-        ])->assertSessionHasErrors('checks');
-
-        $this->assertSame(ShoeSubmissionStatus::ModelReady, $submission->refresh()->status);
-    }
-
-    public function test_the_admin_rejects_a_model_with_a_reason_and_can_send_the_shoe_again(): void
-    {
-        $submission = $this->submissionWithFiles();
-
-        $this->actingAs($this->admin)->post(route('admin.shoe-submissions.review.store', $submission), [
-            'decision' => 'reject',
-            'checks' => ['shape'],
-            'note' => 'The sole is hollow.',
-        ])->assertRedirect(route('admin.shoe-submissions.show', $submission));
-
-        $submission->refresh();
-        $this->assertSame(ShoeSubmissionStatus::Rejected, $submission->status);
-        $this->assertSame('The sole is hollow.', $submission->review_note);
-        $this->assertNotContains(ShoeSubmissionStatus::Rejected, ShoeSubmissionStatus::claimingId());
-
-        $this->actingAs($this->admin)->withoutVite()->get(route('admin.shoe-submissions.show', $submission))
-            ->assertSee('The sole is hollow.')
-            ->assertSee('Send it again')
-            ->assertDontSee('Approve and add to library');
-    }
-
-    public function test_rejecting_needs_a_reason(): void
+    public function test_the_admin_rejects_a_model_and_can_send_the_shoe_again(): void
     {
         $submission = $this->submissionWithFiles();
 
         $this->actingAs($this->admin)->post(route('admin.shoe-submissions.review.store', $submission), ['decision' => 'reject'])
-            ->assertSessionHasErrors('note');
+            ->assertRedirect(route('admin.shoe-submissions.show', $submission));
 
-        $this->assertSame(ShoeSubmissionStatus::ModelReady, $submission->refresh()->status);
+        $submission->refresh();
+        $this->assertSame(ShoeSubmissionStatus::Rejected, $submission->status);
+        $this->assertNotContains(ShoeSubmissionStatus::Rejected, ShoeSubmissionStatus::claimingId());
+
+        $this->actingAs($this->admin)->withoutVite()->get(route('admin.shoe-submissions.show', $submission))
+            ->assertSee('Send it again')
+            ->assertDontSee('Approve and add to library');
+    }
+
+    public function test_the_review_page_has_no_checklist_or_notes(): void
+    {
+        $submission = $this->submissionWithFiles();
+
+        $this->actingAs($this->admin)->withoutVite()->get(route('admin.shoe-submissions.show', $submission))
+            ->assertOk()
+            ->assertDontSee('Checklist')
+            ->assertDontSee('name="note"', false);
     }
 
     public function test_a_model_can_only_be_reviewed_once(): void
     {
         $submission = $this->submissionWithFiles('modelApproved');
 
-        $this->actingAs($this->admin)->post(route('admin.shoe-submissions.review.store', $submission), ['decision' => 'reject', 'note' => 'Changed my mind.'])
+        $this->actingAs($this->admin)->post(route('admin.shoe-submissions.review.store', $submission), ['decision' => 'reject'])
             ->assertConflict();
     }
 
@@ -289,7 +266,7 @@ class ShoeSubmissionReviewTest extends TestCase
 
         $this->actingAs($this->admin)->withoutVite()->get(route('admin.shoe-submissions.show', $submission))
             ->assertOk()
-            ->assertSee('Claude is working out a new fit');
+            ->assertSee('Working on a new fit');
     }
 
     public function test_approving_the_try_on_publishes_the_shoe(): void
@@ -358,7 +335,6 @@ class ShoeSubmissionReviewTest extends TestCase
 
         $this->actingAs($this->admin)->post(route('admin.shoe-submissions.review.store', $submission), [
             'decision' => 'approve',
-            'checks' => array_keys(ReviewShoeSubmissionRequest::CHECKS),
         ])->assertRedirect(route('admin.shoe-submissions.show', $submission));
 
         $shoe = Shoe::query()->where('slug', 'leather-loafer')->sole();
@@ -384,7 +360,6 @@ class ShoeSubmissionReviewTest extends TestCase
 
         $this->actingAs($this->admin)->post(route('admin.shoe-submissions.review.store', $submission), [
             'decision' => 'approve',
-            'checks' => array_keys(ReviewShoeSubmissionRequest::CHECKS),
         ]);
 
         $shoe = Shoe::query()->where('slug', 'leather-loafer')->sole();
@@ -426,7 +401,6 @@ class ShoeSubmissionReviewTest extends TestCase
 
         $this->actingAs($this->admin)->post(route('admin.shoe-submissions.review.store', $submission), [
             'decision' => 'approve',
-            'checks' => array_keys(ReviewShoeSubmissionRequest::CHECKS),
         ]);
 
         $shoe = Shoe::query()->where('slug', 'leather-loafer')->sole();
@@ -441,7 +415,6 @@ class ShoeSubmissionReviewTest extends TestCase
 
         $this->actingAs($this->admin)->post(route('admin.shoe-submissions.review.store', $submission), [
             'decision' => 'approve',
-            'checks' => array_keys(ReviewShoeSubmissionRequest::CHECKS),
         ])->assertSessionHas('error');
 
         $this->assertSame(ShoeSubmissionStatus::ModelReady, $submission->refresh()->status);
@@ -501,7 +474,7 @@ class ShoeSubmissionReviewTest extends TestCase
         $this->actingAs($user)->get(route('admin.shoe-submissions.files.show', [$submission, 'model']))->assertForbidden();
         $this->actingAs($user)->get(route('admin.shoe-submissions.preview', $submission))->assertForbidden();
         $this->actingAs($user)->putJson(route('admin.shoe-submissions.preview.update', $submission), [])->assertForbidden();
-        $this->actingAs($user)->post(route('admin.shoe-submissions.review.store', $submission), ['decision' => 'reject', 'note' => 'No.'])->assertForbidden();
+        $this->actingAs($user)->post(route('admin.shoe-submissions.review.store', $submission), ['decision' => 'reject'])->assertForbidden();
         $this->actingAs($user)->post(route('admin.shoe-submissions.library.store', $submission), ['effect' => $this->effect()])->assertForbidden();
         $this->actingAs($user)->post(route('admin.shoe-submissions.publish.store', $submission))->assertForbidden();
     }

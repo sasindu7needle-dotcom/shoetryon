@@ -52,6 +52,6 @@ class ShoeSubmissionLibraryController extends Controller
             return $shoe;
         });
 
-        return redirect()->route('admin.shoe-submissions.show', $submission)->with('status', "{$shoe->name} was added to the library, hidden. Try it on live, then publish it or tell Claude what to fix.");
+        return redirect()->route('admin.shoe-submissions.show', $submission)->with('status', "{$shoe->name} was added to the library, hidden. Try it on live, then publish it or fix the fit.");
     }
 }

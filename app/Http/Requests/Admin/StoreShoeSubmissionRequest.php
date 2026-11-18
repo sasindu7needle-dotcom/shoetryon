@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use App\Models\Shoe;
 use App\Models\ShoeSubmission;
+use App\ShoeSide;
 use App\ShoeSubmissionStatus;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -52,6 +53,7 @@ class StoreShoeSubmissionRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:80', 'regex:/[\pL\pN]/u'],
             'shoe_type' => ['required', Rule::in(['low', 'boot'])],
+            'shoe_side' => ['required', Rule::enum(ShoeSide::class)],
             'length_cm' => ['required', 'numeric', 'between:15,40'],
             ...$photoRules,
         ];
@@ -91,6 +93,7 @@ class StoreShoeSubmissionRequest extends FormRequest
     {
         return [
             'shoe_type' => 'type',
+            'shoe_side' => 'shoe side',
             'length_cm' => 'shoe length',
             'front_photo' => 'front photo',
             'right_photo' => 'right side photo',
@@ -104,7 +107,10 @@ class StoreShoeSubmissionRequest extends FormRequest
      */
     public function messages(): array
     {
-        $messages = ['name.regex' => 'The name needs at least one letter or number.'];
+        $messages = [
+            'name.regex' => 'The name needs at least one letter or number.',
+            'shoe_side.required' => 'Choose whether the photos show a left or a right shoe.',
+        ];
 
         foreach (array_keys(self::PHOTOS) as $photoField) {
             $messages["{$photoField}.max"] = 'The :attribute must be 20 MB or smaller.';

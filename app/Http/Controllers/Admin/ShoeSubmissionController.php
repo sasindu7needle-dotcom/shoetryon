@@ -4,11 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\N8n\ShoeSubmissionCallbackController;
-use App\Http\Requests\Admin\ReviewShoeSubmissionRequest;
 use App\Http\Requests\Admin\StoreShoeSubmissionRequest;
 use App\Models\Shoe;
 use App\Models\ShoeSubmission;
 use App\ShoeFitRoundStatus;
+use App\ShoeSide;
 use App\ShoeSubmissionStatus;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Client\ConnectionException;
@@ -39,6 +39,7 @@ class ShoeSubmissionController extends Controller
     {
         return view('admin.shoe-submissions.create', [
             'shoeTypes' => self::SHOE_TYPES,
+            'shoeSides' => ShoeSide::cases(),
             'photos' => StoreShoeSubmissionRequest::PHOTOS,
             'requiredPhoto' => StoreShoeSubmissionRequest::REQUIRED_PHOTO,
             'isWorkflowConfigured' => filled(config('services.n8n.new_shoe_form_url')),
@@ -62,7 +63,6 @@ class ShoeSubmissionController extends Controller
             'submission' => $submission->load('user', 'reviewer'),
             'hasPhoto' => $submission->photo_path !== null && $disk->exists($submission->photo_path),
             'hasModel' => $submission->glb_path !== null && $disk->exists($submission->glb_path),
-            'reviewChecks' => ReviewShoeSubmissionRequest::CHECKS,
             'libraryShoe' => $libraryShoe,
             'fitRounds' => $fitRounds,
             'isFitRoundProcessing' => $fitRounds->contains('status', ShoeFitRoundStatus::Processing),
@@ -85,6 +85,7 @@ class ShoeSubmissionController extends Controller
             'name' => trim($request->string('name')->toString()),
             'slug' => $request->slug(),
             'shoe_type' => $request->string('shoe_type')->toString(),
+            'shoe_side' => $request->enum('shoe_side', ShoeSide::class),
             'length_cm' => $request->input('length_cm'),
             'status' => ShoeSubmissionStatus::Processing,
         ]);
@@ -96,12 +97,12 @@ class ShoeSubmissionController extends Controller
         if ($failure !== null) {
             $submission->update(['status' => ShoeSubmissionStatus::Failed, 'message' => $failure]);
 
-            return back()->withInput()->with('error', "{$submission->name} could not be sent to n8n. {$failure}");
+            return back()->withInput()->with('error', "{$submission->name} could not be sent. {$failure}");
         }
 
-        $submission->update(['message' => 'Sent to n8n.']);
+        $submission->update(['message' => 'Making the 3D model.']);
 
-        return redirect()->route('admin.shoe-submissions.create')->with('status', "{$submission->name} was sent to n8n. Its 3D model shows up below when Tripo has made it, usually in 1 to 3 minutes. Reload the page to check.");
+        return redirect()->route('admin.shoe-submissions.create')->with('status', "{$submission->name} was sent. Its 3D model shows up below in 1 to 3 minutes.");
     }
 
     /**
@@ -151,7 +152,7 @@ class ShoeSubmissionController extends Controller
         } catch (ConnectionException $exception) {
             Log::warning('Could not reach the n8n new-shoe form.', ['submission' => $submission->id, 'error' => $exception->getMessage()]);
 
-            return 'n8n could not be reached. Check that it is running and that N8N_NEW_SHOE_FORM_URL is right.';
+            return 'The 3D model service could not be reached. Try again later.';
         }
 
         if ($response->successful()) {
@@ -182,10 +183,10 @@ class ShoeSubmissionController extends Controller
     private function describeRefusal(Response $response): string
     {
         return match ($response->status()) {
-            401, 403 => 'n8n refused the login. Check N8N_FORM_USERNAME and N8N_FORM_PASSWORD.',
-            404 => 'n8n has no form at that address. Publish the workflow and use its production form URL.',
-            413 => 'n8n refused the photos as too large.',
-            default => "n8n answered with an error (HTTP {$response->status()}).",
+            401, 403 => 'The 3D model service refused the login. Ask your developer to check the setup.',
+            404 => 'The 3D model service is not set up right. Ask your developer to check it.',
+            413 => 'The photos are too large. Use smaller photos.',
+            default => "The 3D model service had an error (HTTP {$response->status()}). Try again later.",
         };
     }
 }

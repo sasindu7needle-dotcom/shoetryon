@@ -22,7 +22,7 @@
     <main class="mx-auto flex max-w-6xl flex-col gap-4 px-5 py-4 lg:gap-6 lg:py-8">
         @if (! $licenseKey)
             <p class="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
-                Set <code>DEEPAR_LICENSE_KEY</code> in your environment (Web app key from developer.deepar.ai), then reload.
+                The try-on is not available right now. Please try again later.
             </p>
         @endif
 

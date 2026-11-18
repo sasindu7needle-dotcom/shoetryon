@@ -26,7 +26,8 @@ when seen edge-on.
 textures re-encoded as square WebP (flat defaults for missing maps), and the shoe is
 turned from its own shape so the sole is down, the toes +X and the big toe -Z (a left
 shoe is mirrored into a right one), scaled to AUTO_LENGTH_M and stood with the middle
-of its sole at the origin. The last line printed is then `FIT {json}`: the fit that
+of its sole at the origin. --side=left or --side=right says which foot the shoe is for
+(the admin's choice) instead of guessing it from the sole's outline. The last line printed is then `FIT {json}`: the fit that
 puts it on DeepAR's foot (see config/shoes.php for what the values mean).
 """
 import bisect
@@ -760,16 +761,21 @@ def detect_axes(points, normals, area):
             'confidence': {'down': down_confidence, 'toe': toe_confidence, 'side': abs(lean)}}
 
 
-def auto_orient(positions, normals, indices):
-    """Turns the shoe to toes +X, up +Y, big toe -Z (a right shoe; a clear left shoe is
-    mirrored), scales it to AUTO_LENGTH_M and puts the middle of its sole at the origin."""
+def auto_orient(positions, normals, indices, side=None):
+    """Turns the shoe to toes +X, up +Y, big toe -Z (a right shoe; a left shoe is
+    mirrored), scales it to AUTO_LENGTH_M and puts the middle of its sole at the origin.
+    side ('left' or 'right') is which foot the admin said the shoe is for; without it,
+    the side is guessed from the sole's outline and only a clear left shoe is mirrored."""
     points, point_normals, area = sample_surface(positions, indices)
     if not points:
         raise AutoError('the mesh has no surface')
     axes = detect_axes(points, point_normals, area)
     up, toe = neg(axes['down']), axes['toe']
     right_big_toe = cross(up, toe)
-    mirror = axes['is_left'] and axes['confidence']['side'] >= 0.03
+    if side is None:
+        mirror = axes['is_left'] and axes['confidence']['side'] >= 0.03
+    else:
+        mirror = side == 'left'
     big_toe = neg(right_big_toe) if mirror else right_big_toe
     rows = (toe, up, neg(big_toe))
     positions = [[dot(r, p) for r in rows] for p in positions]
@@ -792,21 +798,23 @@ def auto_orient(positions, normals, indices):
     fit = {'scale': round(AUTO_FOOT_LENGTH / AUTO_LENGTH_M, 3), 'rotation': [0, -90, 0], 'position': list(AUTO_SEAT)}
     orientation = {
         'down': names(axes['down']), 'toe': names(axes['toe']), 'big_toe': names(axes['big_toe']),
-        'shoe': 'left (mirrored)' if mirror else ('left' if axes['is_left'] else 'right'),
+        'shoe': 'left (mirrored)' if mirror else ('left' if axes['is_left'] and side is None else 'right'),
+        'side_from': 'admin' if side is not None else 'shape',
+        'guessed_side': 'left' if axes['is_left'] else 'right',
         'confidence': {k: round(v, 3) for k, v in axes['confidence'].items()},
         'size_m': [round((high[q] - low[q]) * scale, 4) for q in range(3)],
     }
     return positions, normals, indices, fit, orientation
 
 
-def build(template_path, glb_path, out_path, prefix, with_leg_occluder=False, uniforms=None, auto=False):
+def build(template_path, glb_path, out_path, prefix, with_leg_occluder=False, uniforms=None, auto=False, side=None):
     if auto:
         positions, normals, uvs, indices, textures, factors = load_any_glb(glb_path)
         positions, normals, uvs, indices = weld(positions, normals, uvs, indices)
         if len(positions) >= 65536:
             raise AutoError(f'the model has {len(positions)} vertices; DeepAR takes at most 65535. '
                             'Ask Tripo for fewer faces (face_limit, e.g. 20000).')
-        positions, normals, indices, fit, orientation = auto_orient(positions, normals, indices)
+        positions, normals, indices, fit, orientation = auto_orient(positions, normals, indices, side)
     else:
         positions, normals, uvs, indices, textures, factors = load_glb(glb_path)
     assert len(positions) < 65536, 'u16 indices only'
@@ -962,8 +970,12 @@ if __name__ == '__main__':
     argv = sys.argv[1:]
     sets = dict(argv[i + 1].split('=', 1) for i, a in enumerate(argv) if a == '--set')
     args = [a for i, a in enumerate(argv) if not a.startswith('--') and (i == 0 or argv[i - 1] != '--set')]
+    side = next((a.split('=', 1)[1] for a in argv if a.startswith('--side=')), None)
+    if side not in (None, 'left', 'right'):
+        print(f'ERROR --side must be left or right, not {side}', file=sys.stderr)
+        sys.exit(2)
     try:
-        build(*args[:4], with_leg_occluder='--leg-occluder' in argv, uniforms=sets, auto='--auto' in argv)
+        build(*args[:4], with_leg_occluder='--leg-occluder' in argv, uniforms=sets, auto='--auto' in argv, side=side)
     except AutoError as error:
         print(f'ERROR {error}', file=sys.stderr)
         sys.exit(2)

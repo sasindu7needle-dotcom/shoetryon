@@ -93,7 +93,7 @@ class ReoptimizeShoeFitTest extends TestCase
         $shoe = Shoe::factory()->create();
 
         $this->actingAs($this->admin)->post(route('admin.shoes.fit-rounds.store', $shoe), ['comment' => 'The shoe is too big.'])
-            ->assertSessionHas('error', fn (string $error) => str_contains($error, 'N8N_SHOPAR_KEY'));
+            ->assertSessionHas('error', fn (string $error) => str_contains($error, 'refused the key'));
 
         $this->assertSame(ShoeFitRoundStatus::Failed, ShoeFitRound::query()->sole()->status);
     }
@@ -141,7 +141,7 @@ class ReoptimizeShoeFitTest extends TestCase
 
         $this->actingAs($this->admin)->withoutVite()->get(route('admin.shoes.edit', $shoe))
             ->assertOk()
-            ->assertSee('Re-optimize with Claude')
+            ->assertSee('Fix the fit')
             ->assertSee('Heel sticks out.')
             ->assertSee('Moved the shoe 0.5 forward.')
             ->assertSee('New fit saved');

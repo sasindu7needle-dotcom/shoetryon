@@ -18,13 +18,13 @@
 <x-admin-layout title="Add new shoe">
     <x-slot:header>
         <h1 class="rise text-3xl font-bold sm:text-4xl">Add new shoe</h1>
-        <p class="rise mt-2 max-w-2xl text-white/85" style="animation-delay:.1s">Upload a photo of the shoe. n8n has Tripo turn it into a 3D model and sends it back here, usually in 1 to 3 minutes. You preview it on your feet and approve it, and it joins the library hidden until it passes the live try-on.</p>
+        <p class="rise mt-2 max-w-2xl text-white/85" style="animation-delay:.1s">Upload a photo. We turn it into a 3D model in 1 to 3 minutes.</p>
     </x-slot:header>
 
     @unless ($isWorkflowConfigured)
         <div role="alert" class="mb-6 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
-            <p class="font-semibold">The n8n workflow is not connected yet.</p>
-            <p class="mt-1">Set <code class="rounded bg-amber-100 px-1">N8N_NEW_SHOE_FORM_URL</code> (the workflow's production form URL), <code class="rounded bg-amber-100 px-1">N8N_FORM_USERNAME</code> and <code class="rounded bg-amber-100 px-1">N8N_FORM_PASSWORD</code> in the environment, then reload this page.</p>
+            <p class="font-semibold">Adding shoes is not set up yet.</p>
+            <p class="mt-1">Ask your developer to finish the setup.</p>
         </div>
     @endunless
 
@@ -64,6 +64,25 @@
                     @enderror
                 </fieldset>
 
+                <fieldset class="flex flex-col gap-1.5">
+                    <legend class="text-sm font-semibold">Which shoe is in the photos?</legend>
+                    <p class="text-xs text-slate-500">Photograph one shoe of the pair and say which foot it is for. The other foot gets its mirror image in the try-on.</p>
+                    <div class="mt-1.5 grid gap-3 sm:grid-cols-2">
+                        @foreach ($shoeSides as $side)
+                            <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-300 p-3.5 transition has-checked:border-brand-500 has-checked:bg-brand-500/5 has-checked:ring-2 has-checked:ring-brand-500/30">
+                                <input type="radio" name="shoe_side" value="{{ $side->value }}" required @checked(old('shoe_side') === $side->value) class="mt-0.5 size-4 accent-brand-900">
+                                <span class="text-sm">
+                                    <span class="block font-semibold">{{ $side->label() }}</span>
+                                    <span class="block text-slate-500">For the {{ $side->value }} foot</span>
+                                </span>
+                            </label>
+                        @endforeach
+                    </div>
+                    @error('shoe_side')
+                        <p class="text-sm text-rose-600">{{ $message }}</p>
+                    @enderror
+                </fieldset>
+
                 <div class="flex flex-col gap-1.5 sm:max-w-56">
                     <label for="length_cm" class="text-sm font-semibold">Shoe length (cm)</label>
                     <input id="length_cm" name="length_cm" type="number" min="15" max="40" step="0.1" value="{{ old('length_cm') }}" required placeholder="e.g. 27" class="{{ $input }}">
@@ -77,8 +96,8 @@
             <section class="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
                 <div>
                     <h2 class="text-xl font-bold">Photos of the right shoe</h2>
-                    <p class="mt-1 text-sm text-slate-500">The front photo is required, and it is the one Tripo makes the 3D model from. The other views are optional; they are sent along for a multi-view model later but not used yet.</p>
-                    <p class="mt-1 text-sm text-slate-500">JPEG or PNG, up to {{ number_format($maxPhotoBytes / 1024 / 1024, 0) }} MB each. The try-on mirrors it onto the left foot.</p>
+                    <p class="mt-1 text-sm text-slate-500">Only the front photo is required. The others are optional.</p>
+                    <p class="mt-1 text-sm text-slate-500">JPEG or PNG, up to {{ number_format($maxPhotoBytes / 1024 / 1024, 0) }} MB each.</p>
                 </div>
 
                 <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
@@ -105,7 +124,7 @@
 
             <div class="flex flex-col-reverse items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
                 <p class="text-center text-sm text-slate-500 sm:text-left">Uploading can take a minute on a slow connection.</p>
-                <button type="submit" data-submit @disabled(! $isWorkflowConfigured) class="btn-flame w-full disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Send to n8n</button>
+                <button type="submit" data-submit @disabled(! $isWorkflowConfigured) class="btn-flame w-full disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Make 3D model</button>
             </div>
         </div>
 
@@ -126,9 +145,9 @@
             <h2 class="mt-2 text-lg font-bold">What happens next</h2>
             <ol class="flex flex-col gap-2.5 text-sm text-slate-600">
                 @foreach ([
-                    'n8n has Tripo make a 3D model (GLB) from the photos. It shows up in the list below, usually in 1 to 3 minutes.',
-                    'Open it and preview it on your feet with your phone. Line it up, then approve it; it joins the library, hidden. No DeepAR Studio needed.',
-                    'Try it on live. Re-optimize with Claude until it sits right, then publish it.',
+                    'The 3D model shows up below in 1 to 3 minutes.',
+                    'Try it on your feet with your phone and approve it.',
+                    'Check the live try-on, then publish it.',
                 ] as $step)
                     <li class="flex gap-3"><span class="grid size-5 shrink-0 place-items-center rounded-full bg-brand-500/10 text-xs font-bold text-brand-900">{{ $loop->iteration }}</span>{{ $step }}</li>
                 @endforeach
@@ -138,8 +157,8 @@
 
     <section aria-labelledby="submissions-title" class="mt-8 overflow-hidden rounded-2xl border border-slate-200 bg-white">
         <div class="border-b border-slate-200 p-5 sm:p-6">
-            <h2 id="submissions-title" class="text-xl font-bold">Sent to n8n</h2>
-            <p class="mt-1 text-sm text-slate-500">Open a shoe to see its 3D model and add it to the shoe library.</p>
+            <h2 id="submissions-title" class="text-xl font-bold">Your shoes</h2>
+            <p class="mt-1 text-sm text-slate-500">Open a shoe to review it.</p>
         </div>
 
         @if ($submissions->isEmpty())
@@ -151,7 +170,7 @@
                         <div class="min-w-0">
                             <a href="{{ route('admin.shoe-submissions.show', $submission) }}" class="block truncate font-semibold text-brand-900 hover:underline">{{ $submission->name }}</a>
                             <p class="truncate text-sm text-slate-500">
-                                {{ $submission->slug }} · {{ $submission->shoe_type === 'boot' ? 'Boot' : 'Low shoe' }} · {{ rtrim(rtrim($submission->length_cm, '0'), '.') }} cm
+                                {{ $submission->slug }} · {{ $submission->shoe_type === 'boot' ? 'Boot' : 'Low shoe' }}@if ($submission->shoe_side) · {{ $submission->shoe_side->label() }}@endif · {{ rtrim(rtrim($submission->length_cm, '0'), '.') }} cm
                                 · <time datetime="{{ $submission->created_at->toIso8601String() }}" title="{{ $submission->created_at->toDayDateTimeString() }}">{{ $submission->created_at->diffForHumans() }}</time>
                                 @if ($submission->user) · {{ $submission->user->name }} @endif
                             </p>

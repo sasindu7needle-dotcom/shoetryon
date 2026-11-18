@@ -23,7 +23,7 @@ function describeLoadError(error) {
         return `The server answered with an error (HTTP ${status}) while sending the 3D model.`;
     }
 
-    return 'The 3D model could not be read. The GLB may be damaged; download it and open it in another viewer to check.';
+    return 'The 3D model could not be opened. It may be damaged.';
 }
 
 // Shows a GLB from Tripo so the admin can turn it around before approving it

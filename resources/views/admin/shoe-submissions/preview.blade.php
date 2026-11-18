@@ -41,7 +41,7 @@
                         Photo
                     </button>
                 </div>
-                <p id="feet-saved" aria-live="polite" class="text-right text-white/70">{{ $isAwaitingReview ? 'Fitted automatically to your feet.' : 'Fitted automatically. This shoe was already reviewed; nothing is saved.' }}</p>
+                <p id="feet-saved" aria-live="polite" class="text-right text-white/70">{{ $isAwaitingReview ? 'Fitted to your feet.' : 'Already reviewed. Nothing is saved.' }}</p>
             </div>
             <a href="{{ $reviewUrl }}#review" class="btn-flame justify-center">{{ $isAwaitingReview ? 'Done, review it' : 'Back to the shoe' }}</a>
         </div>
@@ -61,9 +61,9 @@
                     What looks wrong? (optional)
                     <textarea data-photo-comment rows="2" maxlength="1000" placeholder="e.g. the heel sticks out behind my foot" class="rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40"></textarea>
                 </label>
-                <button type="button" data-photo-send class="btn-flame justify-center disabled:opacity-50">Send to Claude to optimize the fit</button>
+                <button type="button" data-photo-send class="btn-flame justify-center disabled:opacity-50">Fix the fit</button>
             @else
-                <p class="text-xs text-white/60">{{ $isAwaitingReview ? 'Sending photos to Claude needs N8N_REOPTIMIZE_URL and N8N_SHOPAR_KEY on the server.' : 'This shoe was already reviewed. Send photos to Claude from its try-on review instead.' }}</p>
+                <p class="text-xs text-white/60">{{ $isAwaitingReview ? 'Fit fixes are not set up yet.' : 'Already reviewed. Fix the fit from its review page.' }}</p>
             @endif
             <p data-photo-error role="alert" class="text-xs text-rose-300" hidden></p>
         </form>

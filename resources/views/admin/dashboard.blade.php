@@ -39,7 +39,7 @@
                         Needs your review
                         <span class="rounded-full bg-brand-500 px-2.5 py-0.5 text-sm font-semibold text-white">{{ $awaitingReview->count() }}</span>
                     </h2>
-                    <p class="mt-1 text-slate-600">New shoes from n8n that are waiting on you before they reach the site.</p>
+                    <p class="mt-1 text-slate-600">New shoes waiting for you.</p>
                 </div>
                 <a href="{{ route('admin.shoe-submissions.create') }}" class="inline-flex h-10 items-center rounded-lg border border-slate-300 px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50">All submissions</a>
             </div>

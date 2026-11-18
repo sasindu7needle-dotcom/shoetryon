@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\ShoeSide;
 use App\ShoeSubmissionStatus;
 use Database\Factories\ShoeSubmissionFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -14,7 +15,7 @@ use Normalizer;
 /**
  * A new shoe the admin sent to the n8n workflow as one to four photos.
  */
-#[Fillable(['user_id', 'name', 'slug', 'shoe_type', 'length_cm', 'photo_path', 'glb_path', 'effect_path', 'effect_error', 'preview_fit', 'tripo_task_id', 'status', 'message', 'reviewed_by', 'reviewed_at', 'review_checks', 'review_note'])]
+#[Fillable(['user_id', 'name', 'slug', 'shoe_type', 'shoe_side', 'length_cm', 'photo_path', 'glb_path', 'effect_path', 'effect_error', 'preview_fit', 'tripo_task_id', 'status', 'message', 'reviewed_by', 'reviewed_at', 'review_checks', 'review_note'])]
 class ShoeSubmission extends Model
 {
     /** @use HasFactory<ShoeSubmissionFactory> */
@@ -29,6 +30,7 @@ class ShoeSubmission extends Model
     {
         return [
             'length_cm' => 'decimal:1',
+            'shoe_side' => ShoeSide::class,
             'status' => ShoeSubmissionStatus::class,
             'reviewed_at' => 'datetime',
             'review_checks' => 'array',

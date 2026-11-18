@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\ShoeSubmissionLibraryController;
 use App\Http\Controllers\Admin\ShoeSubmissionPreviewController;
 use App\Http\Controllers\Admin\ShoeSubmissionPublishController;
 use App\Http\Controllers\Admin\ShoeSubmissionReviewController;
+use App\Http\Controllers\Admin\ShoeSubmissionSideController;
 use App\Http\Controllers\Admin\ShoeVisibilityController;
 use App\Http\Controllers\TryOnController;
 use Illuminate\Support\Facades\Route;
@@ -37,6 +38,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::put('shoes/new/{submission}/preview', [ShoeSubmissionPreviewController::class, 'update'])->name('shoe-submissions.preview.update');
         Route::get('shoes/new/{submission}/fit-rounds/latest', [ShoeSubmissionFitRoundController::class, 'show'])->name('shoe-submissions.fit-rounds.latest');
         Route::post('shoes/new/{submission}/fit-rounds', [ShoeSubmissionFitRoundController::class, 'store'])->name('shoe-submissions.fit-rounds.store');
+        Route::put('shoes/new/{submission}/side', [ShoeSubmissionSideController::class, 'update'])->name('shoe-submissions.side.update');
         Route::post('shoes/new/{submission}/review', [ShoeSubmissionReviewController::class, 'store'])->name('shoe-submissions.review.store');
         Route::post('shoes/new/{submission}/library', [ShoeSubmissionLibraryController::class, 'store'])->name('shoe-submissions.library.store');
         Route::post('shoes/new/{submission}/publish', [ShoeSubmissionPublishController::class, 'store'])->name('shoe-submissions.publish.store');

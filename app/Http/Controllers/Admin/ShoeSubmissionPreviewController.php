@@ -55,6 +55,8 @@ class ShoeSubmissionPreviewController extends Controller
                 // replaced by the automatic one.
                 'isClaudeFit' => $latestRound?->status === ShoeFitRoundStatus::Applied && $latestRound->new_fit == $fit,
                 'legMask' => (bool) ($submission->preview_fit['leg_mask'] ?? true),
+                // Which foot the shoe is for, so three.js mirrors it the way the effect does.
+                'side' => $submission->shoe_side?->value,
                 'saveUrl' => $isAwaitingReview ? route('admin.shoe-submissions.preview.update', $submission) : null,
                 'photoName' => $submission->slug.'-on-feet',
                 'claudeUrl' => $canAskClaude ? route('admin.shoe-submissions.fit-rounds.store', $submission) : null,
