@@ -6,6 +6,7 @@ const shoes = window.SHOES;
 const canvas = document.getElementById('hero-canvas');
 const loading = document.getElementById('hero-loading');
 const nameEl = document.getElementById('shoe-name');
+const indexEl = document.getElementById('shoe-index');
 const nav = document.getElementById('site-nav');
 const chips = [...document.querySelectorAll('[data-shoe]')];
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -29,7 +30,8 @@ camera.position.set(0, 0.6, 6.4);
 
 const key = new THREE.DirectionalLight(0xffffff, 2.4);
 key.position.set(3, 5, 4);
-const rim = new THREE.PointLight(0x9fd0ff, 40, 14);
+// A red rim light from behind picks the shoe out of the black page.
+const rim = new THREE.PointLight(0xff2a1a, 46, 14);
 rim.position.set(-3, 1.5, -3);
 scene.add(key, rim);
 
@@ -53,7 +55,7 @@ function radialTexture(inner, outer) {
 // Soft contact shadow under the shoe.
 const shadow = new THREE.Mesh(
     new THREE.PlaneGeometry(3.4, 1.4),
-    new THREE.MeshBasicMaterial({ map: radialTexture('rgba(0,20,60,0.55)', 'rgba(0,20,60,0)'), transparent: true, depthWrite: false }),
+    new THREE.MeshBasicMaterial({ map: radialTexture('rgba(0,0,0,0.85)', 'rgba(0,0,0,0)'), transparent: true, depthWrite: false }),
 );
 shadow.rotation.x = -Math.PI / 2;
 shadow.position.y = floor;
@@ -62,7 +64,7 @@ stage.add(shadow);
 const rings = [1.8, 2.4].map((radius, i) => {
     const ring = new THREE.Mesh(
         new THREE.TorusGeometry(radius, 0.006, 16, 160),
-        new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35 - i * 0.15, depthWrite: false }),
+        new THREE.MeshBasicMaterial({ color: i ? 0xffffff : 0xe10600, transparent: true, opacity: i ? 0.18 : 0.7, depthWrite: false }),
     );
     ring.rotation.x = Math.PI / 2;
     ring.position.y = floor;
@@ -138,6 +140,7 @@ async function show(index) {
     revealChip(chips[currentIndex]);
     warmNeighbours(currentIndex);
     nameEl.textContent = shoe.name;
+    if (indexEl) indexEl.textContent = String(currentIndex + 1).padStart(2, '0');
     document.querySelectorAll('[data-tryon-link]').forEach((a) => {
         a.href = `${a.href.split('?')[0]}?shoe=${shoe.id}`;
     });
@@ -186,8 +189,9 @@ function resize() {
     const h = canvas.clientHeight;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
-    // Pull back on narrow screens so the whole shoe fits.
-    camera.position.z = w < 640 ? 8.5 : 5.8;
+    // Back off far enough that the spinning shoe fits both across and up the canvas, whatever its shape.
+    const halfFov = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+    camera.position.z = Math.max(3.8 / (2 * halfFov * camera.aspect), 3.2 / (2 * halfFov));
     camera.updateProjectionMatrix();
 }
 new ResizeObserver(resize).observe(canvas);

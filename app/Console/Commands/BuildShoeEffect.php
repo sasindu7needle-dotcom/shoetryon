@@ -23,6 +23,12 @@ class BuildShoeEffect extends Command
             ? ShoeSubmission::query()->whereKey($this->argument('submission'))->get()
             : ShoeSubmission::query()->whereNotNull('glb_path')->whereNull('effect_path')->whereNull('effect_error')->get();
 
+        if ($submissions->isEmpty() && $this->argument('submission') !== null) {
+            $this->error("There is no shoe submission with the id “{$this->argument('submission')}”. Give the number only, e.g. shopar:build-effect 11.");
+
+            return self::FAILURE;
+        }
+
         if ($submissions->isEmpty()) {
             $this->info('No shoe needs an effect.');
 

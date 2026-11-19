@@ -9,8 +9,14 @@ export default defineConfig({
             input: ['resources/css/app.css', 'resources/js/app.js', 'resources/js/tryon.js', 'resources/js/landing.js', 'resources/js/model-preview.js', 'resources/js/feet-preview.js', 'resources/js/link-qr.js'],
             refresh: true,
             fonts: [
-                bunny('Figtree', {
+                bunny('Anton', {
+                    weights: [400],
+                }),
+                bunny('Archivo', {
                     weights: [400, 500, 600, 700, 800],
+                }),
+                bunny('JetBrains Mono', {
+                    weights: [400, 500, 700],
                 }),
             ],
         }),

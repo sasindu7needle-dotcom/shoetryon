@@ -166,6 +166,17 @@ class ShoeEffectBuilderTest extends TestCase
         $this->assertNull($submission->effect_error);
     }
 
+    public function test_the_command_says_when_the_id_is_wrong(): void
+    {
+        Process::fake();
+
+        $this->artisan('shopar:build-effect', ['submission' => '{11}'])
+            ->expectsOutputToContain('There is no shoe submission with the id “{11}”')
+            ->assertFailed();
+
+        Process::assertNothingRan();
+    }
+
     public function test_the_real_script_stands_a_sample_shoe_on_the_foot(): void
     {
         $python = config('services.deepar.effect_builder.python');

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="robots" content="noindex">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Preview {{ $submission->name }} on your feet – ShopAR Admin</title>
+    <title>Preview {{ $submission->name }} on your feet – CARNAGE Studio</title>
     @fonts
     @vite(['resources/css/app.css', 'resources/js/feet-preview.js'])
 </head>
@@ -35,7 +35,6 @@
         <div class="flex flex-col gap-2 px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
             <div class="flex items-center justify-between gap-2 text-xs">
                 <div class="flex shrink-0 gap-2">
-                    <button type="button" data-leg-mask aria-pressed="false" class="rounded-lg bg-white/15 px-3 py-2 font-medium transition active:bg-white/30 aria-pressed:bg-emerald-500/40">Feet inside: off</button>
                     <button type="button" data-take-photo disabled class="inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-3 py-2 font-medium transition active:bg-white/30 disabled:opacity-40">
                         <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
                         Photo

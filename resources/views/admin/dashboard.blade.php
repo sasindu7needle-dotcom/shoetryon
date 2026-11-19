@@ -1,32 +1,29 @@
 <x-admin-layout title="Dashboard">
     <x-slot:header>
-        <h1 class="rise text-3xl font-bold sm:text-4xl">Welcome back, {{ auth()->user()->name }}</h1>
-        <p class="rise mt-2 text-white/85" style="animation-delay:.1s">Here is how the collection looks on the site right now.</p>
+        <h1 class="rise text-5xl sm:text-6xl" style="animation-delay:.05s">Welcome back, {{ auth()->user()->name }}</h1>
+        <p class="rise mt-3 text-bone/60" style="animation-delay:.1s">Here is how the collection looks on the site right now.</p>
 
-        <dl class="mt-6 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+        <dl class="mt-8 grid grid-cols-2 border-t border-l border-white/10 xl:grid-cols-4">
             @foreach ([
                 ['Shoes in library', $stats['total']],
                 ['Visible on site', $stats['visible']],
                 ['Hidden', $stats['hidden']],
                 ['AR ready', $stats['arReady']],
             ] as [$label, $value])
-                <div class="rounded-2xl bg-white/15 p-4 backdrop-blur-md sm:p-5">
-                    <dt class="text-sm text-white/80">{{ $label }}</dt>
-                    <dd class="mt-1 text-3xl font-extrabold sm:text-4xl">{{ $value }}</dd>
+                <div class="border-r border-b border-white/10 p-4 sm:p-5">
+                    <dt class="eyebrow text-bone/50">{{ $label }}</dt>
+                    <dd class="font-display mt-2 text-5xl leading-none sm:text-6xl {{ $loop->last ? 'text-blood' : '' }}">{{ str_pad((string) $value, 2, '0', STR_PAD_LEFT) }}</dd>
                 </div>
             @endforeach
         </dl>
 
         @if ($awaitingReview->isNotEmpty())
-            <a href="#review-title" class="mt-4 flex items-center gap-3 rounded-2xl bg-white px-4 py-3 text-slate-900 shadow-lg transition hover:brightness-95">
-                <span class="relative flex size-3 shrink-0">
-                    <span class="absolute inline-flex size-full animate-ping rounded-full bg-brand-500 opacity-60"></span>
-                    <span class="relative inline-flex size-3 rounded-full bg-brand-500"></span>
-                </span>
-                <span class="min-w-0 flex-1 text-sm font-medium sm:text-base">
+            <a href="#review-title" class="group mt-5 flex items-center gap-3 bg-blood px-4 py-3.5 text-white transition hover:bg-blood-dark">
+                <span class="live-dot shrink-0 !bg-white"></span>
+                <span class="min-w-0 flex-1 text-sm font-bold tracking-wide uppercase sm:text-base">
                     {{ $awaitingReview->count() }} {{ Str::plural('shoe', $awaitingReview->count()) }} {{ $awaitingReview->count() === 1 ? 'is' : 'are' }} waiting for you
                 </span>
-                <span class="shrink-0 text-sm font-semibold text-brand-900">See below ↓</span>
+                <span class="shrink-0 font-mono text-xs tracking-widest uppercase">See below ↓</span>
             </a>
         @endif
     </x-slot:header>
@@ -37,7 +34,7 @@
                 <div>
                     <h2 id="review-title" class="flex items-center gap-2 text-2xl font-bold tracking-tight">
                         Needs your review
-                        <span class="rounded-full bg-brand-500 px-2.5 py-0.5 text-sm font-semibold text-white">{{ $awaitingReview->count() }}</span>
+                        <span class="bg-blood px-2 py-0.5 font-mono text-sm text-white">{{ $awaitingReview->count() }}</span>
                     </h2>
                     <p class="mt-1 text-slate-600">New shoes waiting for you.</p>
                 </div>

@@ -3,133 +3,367 @@
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
+/*
+ * CARNAGE design system
+ * Ink black, bone white and one blood-red accent. Heavy condensed display type,
+ * a clean grotesk for reading, mono for labels. Corners are kept tight.
+ */
 @theme {
-    --font-sans: 'Figtree', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+    --font-sans: 'Archivo', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
-    --color-brand-900: #003e80;
-    --color-brand-500: #1a88ff;
-    --color-flame: #ff4d00;
+    --font-display: 'Anton', 'Impact', 'Arial Narrow', ui-sans-serif, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    --color-ink: #0a0a0a;
+    --color-coal: #131313;
+    --color-ash: #1c1c1c;
+    --color-smoke: #2a2a2a;
+    --color-bone: #f3f0ea;
+    --color-blood: #e10600;
+    --color-blood-dark: #b00500;
+
+    /* Older views use these names; they now resolve to the Carnage palette. */
+    --color-brand-900: #0a0a0a;
+    --color-brand-500: #e10600;
+    --color-flame: #e10600;
+
+    /* A warm neutral in place of Tailwind's blue-grey slate, so every grey reads as bone and ink. */
+    --color-slate-50: #f6f4f0;
+    --color-slate-100: #eeebe5;
+    --color-slate-200: #e2ded6;
+    --color-slate-300: #cbc6bc;
+    --color-slate-400: #9c978e;
+    --color-slate-500: #77736b;
+    --color-slate-600: #57534d;
+    --color-slate-700: #3d3a36;
+    --color-slate-800: #262422;
+    --color-slate-900: #161514;
+    --color-slate-950: #0b0b0a;
+
+    --radius-md: 0.1875rem;
+    --radius-lg: 0.25rem;
+    --radius-xl: 0.3125rem;
+    --radius-2xl: 0.375rem;
+    --radius-3xl: 0.5rem;
+
+    --animate-marquee: marquee 28s linear infinite;
 }
 
-/* In the base layer, so a page's own body classes (bg-*, text-*) win */
 @layer base {
     body {
         background: var(--color-slate-50);
         color: var(--color-slate-900);
         -webkit-font-smoothing: antialiased;
     }
+
+    /* Headlines everywhere use the condensed display face. Anton ships one weight, so never fake bold. */
+    h1,
+    h2 {
+        font-family: var(--font-display);
+        font-weight: 400 !important;
+        font-synthesis: none;
+        text-transform: uppercase;
+        letter-spacing: 0.01em;
+        line-height: 0.95;
+    }
+
+    ::selection {
+        background: var(--color-blood);
+        color: #fff;
+    }
+
+    :focus-visible {
+        outline: 2px solid var(--color-blood);
+        outline-offset: 2px;
+    }
 }
 
-/* Deep blue hero with a faint grid */
-.hero-bg {
+/* ---------- Texture ---------- */
+
+/* Film grain over dark surfaces */
+.grain {
+    position: relative;
+    isolation: isolate;
+}
+.grain::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.09;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Hollow display letters */
+/* Only the fill is hidden, so the text colour still drives the outline (and its hover colour). */
+.text-outline {
+    -webkit-text-fill-color: transparent;
+    -webkit-text-stroke: 1.5px currentColor;
+}
+.text-outline-blood {
+    -webkit-text-fill-color: transparent;
+    -webkit-text-stroke: 1.5px var(--color-blood);
+}
+
+/* Fine hairline grid used behind the hero model */
+.hairline-grid {
     background-image:
-        linear-gradient(rgb(255 255 255 / 0.06) 1px, transparent 1px),
-        linear-gradient(90deg, rgb(255 255 255 / 0.06) 1px, transparent 1px),
-        linear-gradient(to top, var(--color-brand-500), var(--color-brand-900));
-    background-size: 56px 56px, 56px 56px, 100% 100%;
+        linear-gradient(rgb(255 255 255 / 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgb(255 255 255 / 0.05) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%);
 }
 
-/* Header turns solid white once the page scrolls */
-.site-nav { transition: background-color 0.3s, color 0.3s, box-shadow 0.3s; color: #fff; }
+/* Black panel with a red glow in one corner; used for admin page headers */
+.hero-bg {
+    background-color: var(--color-ink);
+    background-image:
+        radial-gradient(60% 120% at 100% 0%, rgb(225 6 0 / 0.38), transparent 60%),
+        linear-gradient(rgb(255 255 255 / 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgb(255 255 255 / 0.035) 1px, transparent 1px);
+    background-size: 100% 100%, 48px 48px, 48px 48px;
+    color: var(--color-bone);
+}
+
+/* ---------- Marquee ---------- */
+
+.marquee {
+    display: flex;
+    width: max-content;
+    animation: var(--animate-marquee);
+}
+@keyframes marquee {
+    to { transform: translateX(-50%); }
+}
+
+/* ---------- Header ---------- */
+
+.site-nav { transition: background-color 0.3s, box-shadow 0.3s, backdrop-filter 0.3s; }
 .site-nav[data-solid='true'] {
-    background: rgb(255 255 255 / 0.92);
-    color: var(--color-slate-900);
-    box-shadow: 0 1px 0 var(--color-slate-200);
-    backdrop-filter: blur(12px);
+    background: rgb(10 10 10 / 0.85);
+    box-shadow: 0 1px 0 rgb(255 255 255 / 0.08);
+    backdrop-filter: blur(14px);
 }
-.site-nav .nav-cta { background: #fff; color: var(--color-slate-900); }
-.site-nav[data-solid='true'] .nav-cta { background: var(--color-slate-900); color: #fff; }
 
+.nav-link {
+    position: relative;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    opacity: 0.75;
+    transition: opacity 0.2s;
+}
+.nav-link::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -6px;
+    height: 2px;
+    background: var(--color-blood);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.nav-link:hover { opacity: 1; }
+.nav-link:hover::after { transform: scaleX(1); }
+
+/* ---------- Buttons ---------- */
+
+.btn-blood,
+.btn-flame,
+.btn-ink,
+.btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    min-height: 2.875rem;
+    padding: 0 1.75rem;
+    border-radius: 0;
+    font-size: 0.875rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s, transform 0.2s;
+}
+.btn-blood,
 .btn-flame {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    min-height: 2.75rem;
-    padding: 0 2rem;
-    border-radius: 0.5rem;
-    font-size: 1.125rem;
-    font-weight: 600;
     color: #fff;
-    background-image: linear-gradient(to right, var(--color-orange-500), var(--color-rose-500));
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-    transition: filter 0.2s, transform 0.2s;
+    background: var(--color-blood);
+    box-shadow: 4px 4px 0 var(--color-ink);
 }
-.btn-flame:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.btn-blood:hover,
+.btn-flame:hover { background: var(--color-blood-dark); }
+.btn-blood:active,
+.btn-flame:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--color-ink); }
+.btn-flame:disabled,
+.btn-blood:disabled { box-shadow: none; transform: none; }
 
-.btn-white {
+/* On dark backgrounds the offset shadow reads better in white */
+.on-dark .btn-blood,
+.on-dark .btn-flame { box-shadow: 4px 4px 0 var(--color-bone); }
+.on-dark .btn-blood:active,
+.on-dark .btn-flame:active { box-shadow: 2px 2px 0 var(--color-bone); }
+
+.btn-ink {
+    color: var(--color-bone);
+    background: var(--color-ink);
+}
+.btn-ink:hover { background: var(--color-smoke); }
+
+.btn-ghost {
+    color: currentColor;
+    border: 1.5px solid currentColor;
+    background: transparent;
+}
+.btn-ghost:hover { background: var(--color-bone); color: var(--color-ink); border-color: var(--color-bone); }
+
+.btn-arrow { transition: transform 0.25s; }
+:is(.btn-blood, .btn-flame, .btn-ink, .btn-ghost, .group):hover .btn-arrow { transform: translateX(4px); }
+
+/* ---------- Labels ---------- */
+
+.eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+
+.tag {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    height: 3rem;
-    padding: 0 2rem;
-    border-radius: 9999px;
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: var(--color-brand-900);
-    background: #fff;
-    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.15);
-    transition: transform 0.2s, filter 0.2s;
+    gap: 0.35rem;
+    padding: 0.2rem 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    white-space: nowrap;
 }
-.btn-white:hover { transform: scale(1.05); filter: brightness(0.97); }
+.tag-live { background: var(--color-blood); color: #fff; }
+.tag-muted { border: 1px solid currentColor; opacity: 0.55; }
 
-/* Round shoe thumbnails with a brand ring when selected */
+.live-dot {
+    position: relative;
+    display: inline-flex;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 9999px;
+    background: var(--color-blood);
+}
+.live-dot::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: inherit;
+    animation: live-ping 1.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+@keyframes live-ping { 75%, 100% { transform: scale(2.4); opacity: 0; } }
+
+/* ---------- Shoe pickers ---------- */
+
+/* Hero thumbnails: square bone tiles, the selected one gets a red frame */
 .shoe-dot {
-    background: #fff;
-    border-radius: 9999px;
+    position: relative;
+    background: var(--color-bone);
     overflow: hidden;
-    transition: transform 0.25s, box-shadow 0.25s;
+    outline: 1px solid rgb(255 255 255 / 0.12);
+    transition: transform 0.25s, outline-color 0.25s, opacity 0.25s;
+    opacity: 0.6;
 }
-.shoe-dot:hover { transform: scale(1.06); }
-.shoe-dot[aria-pressed='true'] { box-shadow: 0 0 0 3px var(--color-brand-900); }
+.shoe-dot:hover { opacity: 1; transform: translateY(-2px); }
+.shoe-dot[aria-pressed='true'] { opacity: 1; outline: 2px solid var(--color-blood); outline-offset: 2px; }
 
+/* Try-on picker cards on the dark page */
+.pair-card {
+    position: relative;
+    background: var(--color-ash);
+    border: 1px solid rgb(255 255 255 / 0.08);
+    transition: border-color 0.2s, transform 0.2s, background-color 0.2s;
+}
+.pair-card:not(:disabled):hover { border-color: rgb(255 255 255 / 0.3); transform: translateY(-2px); }
+.pair-card[aria-pressed='true'] { border-color: var(--color-blood); background: rgb(225 6 0 / 0.1); box-shadow: inset 0 0 0 1px var(--color-blood); }
+.pair-card[aria-pressed='true'] .pair-check { opacity: 1; transform: scale(1); }
+.pair-check { opacity: 0; transform: scale(0.6); transition: opacity 0.2s, transform 0.2s; }
+
+/* Admin shoe tiles on light panels */
 .shoe-card {
     border: 1px solid var(--color-slate-200);
     background: #fff;
     transition: transform 0.25s, border-color 0.25s, box-shadow 0.25s;
 }
-.shoe-card:not(:disabled):hover { transform: translateY(-3px); box-shadow: 0 10px 25px -10px rgb(15 23 42 / 0.25); }
-.shoe-card[aria-pressed='true'] { border-color: var(--color-brand-900); box-shadow: 0 0 0 2px var(--color-brand-900); }
+.shoe-card:not(:disabled):hover { transform: translateY(-3px); border-color: var(--color-ink); box-shadow: 4px 4px 0 var(--color-ink); }
+.shoe-card[aria-pressed='true'] { border-color: var(--color-blood); box-shadow: 0 0 0 2px var(--color-blood); }
+
+/* Drop grid cards on the landing page */
+.drop-card .drop-img { transition: transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1); }
+.drop-card:hover .drop-img { transform: scale(1.06) rotate(-2deg); }
+.drop-card .drop-cta { transform: translateY(100%); transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1); }
+.drop-card:hover .drop-cta,
+.drop-card:focus-visible .drop-cta { transform: none; }
 
 /* Scrolls without showing a scrollbar, for compact thumbnail strips */
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
-/* Small orange dots scattered on light sections */
-.flame-dots {
-    background-image: radial-gradient(var(--color-flame) 1.5px, transparent 1.5px);
-    background-size: 120px 90px;
-    background-position: 20px 30px;
-    opacity: 0.35;
+/* Thin dark scrollbar for the try-on picker on large screens */
+@utility dark-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-smoke) transparent;
 }
 
-.rise { opacity: 0; transform: translateY(20px); animation: rise 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) forwards; }
+/* Red speckle used on light admin panels */
+.flame-dots {
+    background-image: radial-gradient(var(--color-blood) 1px, transparent 1px);
+    background-size: 22px 22px;
+    mask-image: linear-gradient(to bottom, #000, transparent);
+    opacity: 0.18;
+}
+
+/* ---------- Motion ---------- */
+
+.rise { opacity: 0; transform: translateY(24px); animation: rise 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) forwards; }
 @keyframes rise { to { opacity: 1; transform: none; } }
 
-/* AR camera frame */
+.reveal-line { display: block; overflow: hidden; }
+.reveal-line > span { display: block; transform: translateY(105%); animation: reveal 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) forwards; }
+@keyframes reveal { to { transform: none; } }
+
+/* ---------- AR camera ---------- */
+
 .ar-frame::before,
 .ar-frame::after {
     content: '';
     position: absolute;
-    width: 40px;
-    height: 40px;
-    border: 3px solid #fff;
+    width: 34px;
+    height: 34px;
+    border: 3px solid var(--color-blood);
     z-index: 5;
     pointer-events: none;
 }
-.ar-frame::before { top: 14px; left: 14px; border-right: 0; border-bottom: 0; border-top-left-radius: 12px; }
-.ar-frame::after { bottom: 14px; right: 14px; border-left: 0; border-top: 0; border-bottom-right-radius: 12px; }
+.ar-frame::before { top: 14px; left: 14px; border-right: 0; border-bottom: 0; }
+.ar-frame::after { bottom: 14px; right: 14px; border-left: 0; border-top: 0; }
+
 .scan {
     position: absolute;
     left: 0;
     right: 0;
-    height: 120px;
-    background: linear-gradient(to bottom, transparent, rgb(26 136 255 / 0.45), transparent);
-    animation: scan 2.4s ease-in-out infinite;
+    height: 2px;
+    background: var(--color-blood);
+    box-shadow: 0 0 24px 6px rgb(225 6 0 / 0.55);
+    animation: scan 2.4s ease-in-out infinite alternate;
 }
-@keyframes scan { from { top: -120px; } to { top: 100%; } }
+@keyframes scan { from { top: 8%; } to { top: 92%; } }
 
 @media (prefers-reduced-motion: reduce) {
-    .scan, .rise { animation: none; opacity: 1; transform: none; }
+    .scan, .rise, .marquee, .live-dot::before { animation: none; opacity: 1; transform: none; }
+    .reveal-line > span { animation: none; transform: none; }
 }

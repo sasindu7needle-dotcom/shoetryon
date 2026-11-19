@@ -19,7 +19,6 @@ const statusAction = status.querySelector('[data-status-action]');
 const busy = status.querySelector('[data-busy]');
 const hint = document.getElementById('feet-hint');
 const savedNote = document.getElementById('feet-saved');
-const legMaskButton = document.querySelector('[data-leg-mask]');
 
 const reload = { label: 'Reload', run: () => location.reload() };
 const feetRenderer = new FeetRenderer(stage, document.getElementById('feet-shoes'));
@@ -33,7 +32,9 @@ let ar = null;
 let fit = config.isClaudeFit || usesEffect
     ? structuredClone(config.fit)
     : { scale: DEFAULT_FIT.scale, rotation: [...DEFAULT_FIT.rotation], position: [...DEFAULT_FIT.position] };
-let legMask = config.legMask;
+// The wearer's foot and leg always hide the shoe's footbed and collar, so the
+// real foot shows inside the shoe; an effect has DeepAR's own foot occluders.
+const legMask = true;
 
 // Puts the current fit on the shoe, whichever way it is drawn.
 function showFit() {
@@ -89,22 +90,6 @@ function describeFit() {
     return 'Fitted to your feet.';
 }
 
-// "Feet inside" hides the shoe's footbed and collar where the wearer's foot
-// and leg are, so the real foot shows inside the shoe.
-function showLegMaskState() {
-    legMaskButton.setAttribute('aria-pressed', String(legMask));
-    legMaskButton.textContent = legMask ? 'Feet inside: on' : 'Feet inside: off';
-}
-
-legMaskButton.addEventListener('click', () => {
-    legMask = !legMask;
-    showFit();
-    showLegMaskState();
-    scheduleSave();
-});
-showLegMaskState();
-// An effect has DeepAR's own foot occluders.
-legMaskButton.hidden = usesEffect;
 if (config.effectError) {
     savedNote.textContent = 'Shown in basic mode.';
 }
