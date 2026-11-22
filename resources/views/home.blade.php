@@ -38,7 +38,7 @@
 
         {{-- Phones stack headline, model, then the selected pair. Large screens put the model on the right,
              level with the headline, so it is in view without scrolling. --}}
-        <div class="relative mx-auto grid w-full max-w-7xl flex-1 grid-cols-1 items-center gap-x-10 px-5 pt-6 lg:min-h-0 lg:grid-cols-[1fr_1.1fr] lg:grid-rows-[1fr_auto_0.35fr] lg:pt-2">
+        <div class="relative mx-auto grid w-full max-w-7xl flex-1 grid-cols-1 items-center gap-x-10 px-5 pt-6 lg:min-h-0 lg:grid-cols-[1fr_1.1fr] lg:grid-rows-[1fr_auto_0.35fr] lg:pt-2 lg:pr-24 lg:pb-6">
             <div class="lg:self-end">
                 <h1 class="text-[13vw] sm:text-7xl lg:text-[clamp(3rem,10.5vh,6rem)]">
                     <span class="reveal-line"><span>Wear it</span></span>
@@ -81,9 +81,10 @@
             </div>
         </div>
 
-        {{-- Every pair in a row along the bottom; it scrolls sideways when the collection is too long to fit. --}}
-        <div class="relative mx-auto w-full max-w-7xl shrink-0 px-5 pt-6 pb-8 lg:pt-3 lg:pb-5">
-            <ul class="no-scrollbar mx-auto flex w-fit max-w-full gap-3 overflow-x-auto p-1.5">
+        {{-- Every pair in a row along the bottom on phones; large screens stack them top to bottom down the right edge.
+             The list scrolls when the collection is too long to fit. --}}
+        <div class="relative mx-auto w-full max-w-7xl shrink-0 px-5 pt-6 pb-8 lg:absolute lg:top-1/2 lg:right-5 lg:z-10 lg:w-auto lg:max-w-none lg:-translate-y-1/2 lg:p-0">
+            <ul class="no-scrollbar mx-auto flex w-fit max-w-full gap-3 overflow-x-auto p-1.5 lg:max-h-[75vh] lg:flex-col lg:overflow-x-hidden lg:overflow-y-auto">
                 @foreach ($shoes as $i => $shoe)
                     <li class="shrink-0">
                         <button type="button" data-shoe="{{ $shoe['id'] }}" aria-pressed="{{ $i === 0 ? 'true' : 'false' }}" aria-label="View {{ $shoe['name'] }}"
